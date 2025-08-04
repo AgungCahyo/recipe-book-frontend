@@ -1,0 +1,120 @@
+import React from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  Image,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { useRecipes } from 'context/RecipesContext';
+import { useIngredients } from 'context/IngredientsContext';
+import { useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ScrollView } from 'react-native';
+
+export default function HomePage() {
+  const router = useRouter();
+  const { recipes } = useRecipes();
+  const { ingredients } = useIngredients();
+
+  const recentRecipes = [...recipes].slice(-6).reverse();
+ useEffect(() => {
+  const logStorage = async () => {
+    const keys = await AsyncStorage.getAllKeys();
+    const entries = await AsyncStorage.multiGet(keys);
+  };
+  logStorage();
+}, []);
+
+
+  return (
+    <View className="flex-1 bg-[#F9FAFB] dark:bg-[#0f0f0f]">
+      <View className="px-5 pt-6">
+        {/* === Header === */}
+        <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+          Aplikasi Resep
+        </Text>
+        <Text className="text-base text-gray-500 dark:text-gray-400 mb-6">
+          Yuk bikin dan kelola resep dengan mudah.
+        </Text>
+
+        {/* === Stats Ringkas === */}
+        <View className="flex-row gap-4 mb-6">
+          <View className="flex-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+            <Text className="text-gray-500 text-sm mb-1">Total Resep</Text>
+            <Text className="text-2xl font-bold text-gray-900 dark:text-white">
+              {recipes.length}
+            </Text>
+          </View>
+          <View className="flex-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+            <Text className="text-gray-500 text-sm mb-1">Total Bahan</Text>
+            <Text className="text-2xl font-bold text-gray-900 dark:text-white">
+              {ingredients.length}
+            </Text>
+          </View>
+        </View>
+
+        {/* === Quick Actions === */}
+        <View className="flex-row gap-4 mb-6">
+          <TouchableOpacity
+            onPress={() => router.push('/recipes/recipeForm')}
+            className="flex-1 bg-blue-600 py-3 rounded-2xl shadow-md"
+          >
+            <Text className="text-white text-center font-semibold">＋ Resep Baru</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/ingredientsSetUp')}
+            className="flex-1 bg-green-500 py-3 rounded-2xl shadow-md"
+          >
+            <Text className="text-white text-center font-semibold">＋ Bahan Baru</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* === Resep Terbaru === */}
+        <View className="mb-3">
+          <Text className="text-lg font-semibold text-gray-900 dark:text-white">
+            Resep Terbaru
+          </Text>
+        </View>
+
+        {recentRecipes.length === 0 ? (
+  <Text className="text-gray-500 dark:text-gray-400 text-sm">
+    Belum ada resep yang ditambahkan.
+  </Text>
+) : (
+  <ScrollView  showsHorizontalScrollIndicator={false}>
+    {recentRecipes.map((item) => (
+      <TouchableOpacity
+        key={item.id}
+        onPress={() => router.push(`/recipes/${item.id}`)}
+        className="w-52 mr-3 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm"
+      >
+        {item.imageUris?.[0] ? (
+          <Image
+            source={{ uri: item.imageUris[0] }}
+            className="w-full h-28 rounded-xl mb-2"
+            resizeMode="cover"
+          />
+        ) : (
+          <View className="w-full h-28 bg-zinc-200 dark:bg-zinc-700 rounded-xl mb-2 items-center justify-center">
+            <Text className="text-xs text-zinc-500">No Image</Text>
+          </View>
+        )}
+        <Text
+          className="text-gray-900 dark:text-white font-semibold mb-1"
+          numberOfLines={1}
+        >
+          {item.title}
+        </Text>
+        <Text className="text-gray-500 dark:text-gray-400 text-xs" numberOfLines={1}>
+          {item.category || 'Tanpa kategori'}
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </ScrollView>
+)}
+      </View>
+    </View>
+  );
+}
