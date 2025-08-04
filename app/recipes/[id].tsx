@@ -1,4 +1,6 @@
-import React, { useState, useRef } from 'react';
+// app/recipes/[id].tsx
+
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,9 +8,9 @@ import {
   Image,
   TouchableOpacity,
   Alert,
+  useColorScheme,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import Checkbox from 'expo-checkbox';
 import { useRecipes } from 'context/RecipesContext';
 import Slider from '@react-native-community/slider';
 
@@ -16,37 +18,30 @@ export default function RecipeDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { recipes, deleteRecipe } = useRecipes();
   const router = useRouter();
-  const [checkedItems, setCheckedItems] = useState<string[]>([]);
-
-  const recipe = recipes.find((r) => r.id === id);
+  const theme = useColorScheme();
+  const isDark = theme === 'dark';
 
   const [margin, setMargin] = useState(60);
+  const recipe = recipes.find((r) => r.id === id);
   const hpp = recipe?.hpp || 0;
-  const [displayedPrice, setDisplayedPrice] = useState(
-    Math.round(hpp * 1.3)
-  );
-  const tempMargin = useRef(margin);
+  const displayedPrice = Math.round(hpp + hpp * margin / 100);
 
-  const handleSliding = (val: number) => {
-    tempMargin.current = val;
-    setDisplayedPrice(Math.round(hpp + hpp * val / 100));
-  };
+  useEffect(() => {
+    if (!recipe) {
+      const timeout = setTimeout(() => {
+        router.replace('/recipes');
+      }, 100);
+      return () => clearTimeout(timeout);
+    }
+  }, [recipe]);
 
   if (!recipe) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-4">
-        <Text className="text-lg text-gray-500 text-center">Resep tidak ditemukan.</Text>
+      <View className="flex-1 justify-center items-center bg-white dark:bg-black">
+        <Text className="text-gray-500 dark:text-gray-400">Memuat data resep...</Text>
       </View>
     );
   }
-
-  const toggleCheck = (itemId: string) => {
-    setCheckedItems((prev) =>
-      prev.includes(itemId)
-        ? prev.filter((id) => id !== itemId)
-        : [...prev, itemId]
-    );
-  };
 
   const handleDelete = () => {
     Alert.alert('Hapus Resep', 'Yakin ingin menghapus resep ini?', [
@@ -54,80 +49,95 @@ export default function RecipeDetailPage() {
       {
         text: 'Hapus',
         style: 'destructive',
-        onPress: () => {
-          deleteRecipe(recipe.id);
-          router.replace('/recipes');
+        onPress: async () => {
+          await deleteRecipe(recipe.id);
+          setTimeout(() => router.replace('/recipes'), 100);
         },
       },
     ]);
   };
 
   return (
-    <View className="flex-1 bg-white px-5 pt-5 ">
-      {/* === FIXED TOP: Images + Title + Category === */}
-      {Array.isArray(recipe.imageUris) && recipe.imageUris.length > 0 && (
-        <View className=''>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-5 rounded-xl ">
-          {recipe.imageUris.map((uri, index) => (
-            <Image
-              key={index}
-              source={{ uri }}
-              className="w-72 h-56 mr-3 rounded-2xl"
-              resizeMode="cover"
-            />
+    <View className="flex-1 bg-white dark:bg-black">
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        {/* IMAGES */}
+        {Array.isArray(recipe.imageUris) && recipe.imageUris.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="mb-6 px-5"
+          >
+            {recipe.imageUris.map((uri, index) => (
+              <Image
+                key={index}
+                source={{ uri }}
+                className="w-72 h-56 mr-4 rounded-2xl"
+                resizeMode="cover"
+              />
+            ))}
+          </ScrollView>
+        )}
+
+        {/* TITLE & CATEGORY */}
+        <View className="px-6">
+          <Text className="text-3xl font-extrabold text-center mb-1 text-gray-900 dark:text-white">
+            {recipe.title}
+          </Text>
+          <Text className="text-center text-base text-gray-500 dark:text-gray-400 mb-6">
+            {recipe.category || 'Tanpa Kategori'}
+          </Text>
+
+          {/* DESCRIPTION */}
+          <Text className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-2">
+            Langkah-langkah
+          </Text>
+          <Text className="text-base text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+            {recipe.description || '-'}
+          </Text>
+
+          {/* INGREDIENTS */}
+          <Text className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3">
+            Bahan-bahan
+          </Text>
+          {recipe.ingredients.map((item) => (
+            <View key={item.id} className="flex-row items-start gap-2 mb-2">
+              <Text className="text-base text-gray-700 dark:text-gray-400">●</Text>
+              <Text className="text-base text-gray-900 dark:text-white">
+                {item.quantity} {item.unit} {item.name}
+              </Text>
+            </View>
           ))}
-        </ScrollView>
-        </View>
-      )}
-      <Text className="text-2xl font-bold text-center mb-1 text-gray-900">{recipe.title}</Text>
-      <Text className="text-center text-base text-gray-500 mb-4">
-        {recipe.category || 'Tanpa Kategori'}
-      </Text>
 
-      {/* === SCROLLABLE CONTENT: Steps & Ingredients === */}
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
-        {/* Steps */}
-        <Text className="text-lg font-semibold text-gray-800 mb-2">Langkah-langkah</Text>
-        <Text className="text-base text-gray-700 mb-6 whitespace-pre-line leading-relaxed">
-          {recipe.description || '-'}
-        </Text>
+          {/* HPP & MARGIN */}
+          <View className="mt-8 mb-4">
+            <Text className="text-lg font-semibold text-black dark:text-white">
+              Total HPP: Rp {hpp.toLocaleString('id-ID')}
+            </Text>
+          </View>
 
-        {/* Ingredients with Checklist */}
-        <Text className="text-lg font-semibold text-gray-800 mb-3">Bahan-bahan</Text>
-      {recipe.ingredients.map((item, index) => (
-  <View key={item.id} className="flex-row items-start gap-2 mb-2">
-    <Text className="text-base text-gray-700">●</Text>
-    <Text className="text-base text-gray-900">
-      {item.quantity} {item.unit} {item.name}
-    </Text>
-  </View>
-))}
-
-        {/* Total HPP & Margin */}
-        <View className="mt-6 mb-6">
-          <Text className="text-lg font-semibold text-black">
-            Total HPP: Rp {hpp.toLocaleString('id-ID')}
-          </Text>
-        </View>
-        <View className="mb-10">
-          <Text className="text-gray-700 font-semibold mb-2">Atur Margin (%)</Text>
-          <Text className="text-lg mt-2 mb-2">Margin: {margin}%</Text>
-          <Slider
-            onValueChange={handleSliding}
-            value={margin}
-            minimumValue={0}
-            maximumValue={500}
-            step={5}
-            onSlidingComplete={(val) => setMargin(val)}
-          />
-          <Text className="text-xl font-bold text-black mt-4">
-            Harga Jual: Rp {displayedPrice.toLocaleString('id-ID')}
-          </Text>
+          <View className="mb-12">
+            <Text className="text-gray-700 dark:text-gray-300 font-semibold mb-2">
+              Atur Margin (%)
+            </Text>
+            <Text className="text-lg text-gray-900 dark:text-white mb-2">
+              Margin: {margin}%
+            </Text>
+            <Slider
+              onValueChange={(val) => setMargin(val)}
+              value={margin}
+              minimumValue={0}
+              maximumValue={500}
+              step={5}
+            />
+            <Text className="text-xl font-bold text-black dark:text-white mt-4">
+              Harga Jual: Rp {displayedPrice.toLocaleString('id-ID')}
+            </Text>
+          </View>
         </View>
       </ScrollView>
 
-      {/* === FIXED BOTTOM: Buttons === */}
-      <View className="flex-row justify-between gap-3 pb-6 pt-3 bg-white">
+      {/* ACTION BUTTONS */}
+      <View className="absolute bottom-0 left-0 right-0 px-5 py-4 bg-white dark:bg-black border-t border-gray-100 dark:border-gray-800 flex-row gap-4">
         <TouchableOpacity
           onPress={() => router.push({ pathname: '/recipes/recipeForm', params: { id: recipe.id } })}
           className="flex-1 py-3 rounded-full bg-yellow-500"

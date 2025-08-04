@@ -4,20 +4,24 @@ import { Alert } from 'react-native';
 import uuid from 'react-native-uuid';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system'
-
+import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useRecipes } from '../context/RecipesContext';
 import { useIngredients } from '../context/IngredientsContext';
 import { useDraftRecipe } from '../context/DraftRecipeContext';
+import { useAlert } from '../context/AlertContext';
+
 
 export function useRecipeForm(id?: string) {
   const router = useRouter();
+  const { showAlert } = useAlert();
   const { recipes, addRecipe, editRecipe } = useRecipes();
   const { ingredients } = useIngredients();
   const { draft, updateDraft, clearDraft } = useDraftRecipe();
 
   const editing = !!id;
   const existingRecipe = recipes.find((r) => r.id === id);
+  const [isUploading, setIsUploading] = useState(false);
 
   const recipeData = useMemo(() => {
     if (editing && existingRecipe) {
@@ -44,7 +48,6 @@ export function useRecipeForm(id?: string) {
 
   const prevDraftRef = useRef(draft);
 
-  // Inisialisasi state saat pertama render
   useEffect(() => {
     if (!recipeData || !recipeData.title) return;
     setTitle(recipeData.title);
@@ -54,7 +57,6 @@ export function useRecipeForm(id?: string) {
     setCategory(recipeData.category);
   }, []);
 
-  // Update draft secara otomatis setiap perubahan
   useEffect(() => {
     const prev = prevDraftRef.current;
     const isSame =
@@ -71,7 +73,6 @@ export function useRecipeForm(id?: string) {
     }
   }, [title, steps, ingredientsList, imageUris, category]);
 
-  // Fungsi logika
   const updateStep = (index: number, value: string) => {
     const updated = [...steps];
     updated[index] = value;
@@ -83,24 +84,24 @@ export function useRecipeForm(id?: string) {
 
   const addIngredient = () => {
     if (!ingredientName || !quantity || !unit) {
-      Alert.alert('Lengkapi Bahan', 'Isi nama, jumlah, dan satuan terlebih dahulu.');
+      showAlert('Isi nama, jumlah, dan satuan terlebih dahulu.', 'warning');
       return;
     }
 
     if (ingredientsList.find((i) => i.name === ingredientName)) {
-      Alert.alert('Bahan Duplikat', 'Bahan sudah ditambahkan.');
+      showAlert('Bahan sudah ditambahkan.', 'error');
       return;
     }
 
     const existing = ingredients.find((i) => i.name === ingredientName);
     if (!existing) {
-      Alert.alert('Bahan Tidak Ditemukan', 'Silakan tambahkan bahan terlebih dahulu.');
+      showAlert('Bahan tidak ditemukan. Tambahkan bahan terlebih dahulu.', 'error');
       return;
     }
 
     const qty = parseFloat(quantity);
     if (isNaN(qty) || qty <= 0) {
-      Alert.alert('Jumlah Salah', 'Jumlah harus berupa angka positif.');
+      showAlert('Jumlah harus berupa angka positif.', 'warning');
       return;
     }
 
@@ -130,14 +131,16 @@ export function useRecipeForm(id?: string) {
 
   const handleSave = async () => {
     const cleanedSteps = steps.filter((s) => s.trim() !== '');
+
     if (!title.trim()) {
-      Alert.alert('Judul Kosong', 'Harap isi judul resep.');
-      return;
-    } if (ingredientsList.length === 0) {
-      Alert.alert('Bahan Kosong', 'Tambahkan minimal satu bahan.');
+      showAlert('Judul resep tidak boleh kosong.', 'error');
       return;
     }
 
+    if (ingredientsList.length === 0) {
+      showAlert('Tambahkan minimal satu bahan.', 'error');
+      return;
+    }
 
     const data = {
       title: title.trim(),
@@ -155,31 +158,25 @@ export function useRecipeForm(id?: string) {
     }
 
     clearDraft();
-    Alert.alert('Sukses', editing ? 'Resep diperbarui.' : 'Resep berhasil ditambahkan.');
+    showAlert(editing ? 'Resep diperbarui.' : 'Resep berhasil ditambahkan.', 'success');
     router.push(`/recipes?refresh=${Date.now()}`);
-
   };
 
-
-  // Fungsi internal (private)
   const saveImagePermanently = async (uri: string): Promise<string> => {
     try {
       const fileName = uri.split('/').pop();
       const newPath = `${FileSystem.documentDirectory}images/${fileName}`;
 
-      // Pastikan folder ada
-      await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}images`, { intermediates: true });
-
-      // Copy file ke path permanen
-      await FileSystem.copyAsync({
-        from: uri,
-        to: newPath,
+      await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}images`, {
+        intermediates: true,
       });
-console.log('Gambar disimpan di:', newPath);
+
+      await FileSystem.copyAsync({ from: uri, to: newPath });
 
       return newPath;
     } catch (err) {
       console.error('❌ Gagal simpan gambar permanen:', err);
+      showAlert('Gagal menyimpan gambar.', 'error');
       throw err;
     }
   };
@@ -187,30 +184,49 @@ console.log('Gambar disimpan di:', newPath);
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Izin Diperlukan', 'Akses galeri dibutuhkan untuk memilih gambar.');
+      showAlert('Akses galeri dibutuhkan untuk memilih gambar.', 'warning');
       return;
     }
 
+    setIsUploading(true);
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
       allowsMultipleSelection: true,
-      aspect: [4, 3],
       quality: 0.7,
     });
 
-    if (!result.canceled) {
+    if (!result.canceled && result.assets.length > 0) {
       try {
-        const savedUris = await Promise.all(
-          result.assets.map((a) => saveImagePermanently(a.uri))
+        const placeholders = result.assets.map(() => 'loading');
+        setImageUris((prev) => [...prev, ...placeholders]);
+
+        const resizedUris = await Promise.all(
+          result.assets.map(async (asset) => {
+            const manipulated = await ImageManipulator.manipulateAsync(
+              asset.uri,
+              [{ resize: { width: 800 } }],
+              { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+            );
+            return manipulated.uri;
+          })
         );
-        setImageUris((prev) => [...prev, ...savedUris]);
+
+        const savedUris = await Promise.all(resizedUris.map(saveImagePermanently));
+
+        setImageUris((prev) => {
+          const prevWithoutPlaceholders = prev.filter((uri) => uri !== 'loading');
+          return [...prevWithoutPlaceholders, ...savedUris];
+        });
       } catch (err) {
-        Alert.alert('Gagal Simpan', 'Gagal menyimpan gambar secara permanen.');
+        console.error('❌ Gagal upload:', err);
+        showAlert('Gagal menyimpan gambar.', 'error');
+        setImageUris((prev) => prev.filter((uri) => uri !== 'loading'));
+      } finally {
+        setIsUploading(false);
       }
     }
   };
-
 
   return {
     title, setTitle,
@@ -224,5 +240,6 @@ console.log('Gambar disimpan di:', newPath);
     handleSave,
     editing,
     pickImage,
+    isUploading,
   };
 }

@@ -1,41 +1,51 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 export default function useSelection<T extends { id: string }>() {
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((n) => n !== id) : [...prev, id]
-    );
-  };
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const updated = new Set(prev);
+      updated.has(id) ? updated.delete(id) : updated.add(id);
 
-  const enableSelection = (id: string) => {
+      // ⬇️ keluar dari selection mode kalau gak ada yang dipilih
+      if (updated.size === 0) {
+        setIsSelectionMode(false);
+      }
+
+      return updated;
+    });
+  }, []);
+
+  const enableSelection = useCallback((id: string) => {
     setIsSelectionMode(true);
-    setSelectedIds([id]);
-  };
+    setSelectedIds(new Set([id]));
+  }, []);
 
-  const cancelSelection = () => {
+  const cancelSelection = useCallback(() => {
     setIsSelectionMode(false);
-    setSelectedIds([]);
-  };
+    setSelectedIds(new Set());
+  }, []);
 
-  const selectAll = (items: T[]) => {
+  const selectAll = useCallback((items: T[]) => {
     setIsSelectionMode(true);
-    setSelectedIds(items.map((item) => item.id));
-  };
+    setSelectedIds(new Set(items.map((item) => item.id)));
+  }, []);
 
-  const deselectAll = () => {
-    setSelectedIds([]);
-  };
+  const deselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+    setIsSelectionMode(false); // ⬅️ auto exit juga
+  }, []);
 
   return {
-    selectedIds,
+    selectedIds: Array.from(selectedIds),
     isSelectionMode,
     toggleSelect,
     enableSelection,
     cancelSelection,
     selectAll,
     deselectAll,
+    isSelected: (id: string) => selectedIds.has(id),
   };
 }

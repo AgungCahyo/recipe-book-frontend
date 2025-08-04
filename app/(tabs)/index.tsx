@@ -29,7 +29,7 @@ export default function HomePage() {
 
 
   return (
-    <View className="flex-1 bg-[#F9FAFB] dark:bg-[#0f0f0f]">
+    <View  className="flex-1 bg-white dark:bg-black">
       <View className="px-5 pt-6">
         {/* === Header === */}
         <Text className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
@@ -41,13 +41,13 @@ export default function HomePage() {
 
         {/* === Stats Ringkas === */}
         <View className="flex-row gap-4 mb-6">
-          <View className="flex-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+          <View className="flex-1  bg-gray-100 dark:bg-gray-800  border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
             <Text className="text-gray-500 text-sm mb-1">Total Resep</Text>
             <Text className="text-2xl font-bold text-gray-900 dark:text-white">
               {recipes.length}
             </Text>
           </View>
-          <View className="flex-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
+          <View className="flex-1 bg-gray-100 dark:bg-gray-800  border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
             <Text className="text-gray-500 text-sm mb-1">Total Bahan</Text>
             <Text className="text-2xl font-bold text-gray-900 dark:text-white">
               {ingredients.length}

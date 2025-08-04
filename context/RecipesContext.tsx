@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ToastAndroid } from 'react-native';
 import uuid from 'react-native-uuid';
 import * as FileSystem from 'expo-file-system';
 
@@ -58,7 +57,6 @@ export const RecipesProvider = ({ children }: { children: React.ReactNode }) => 
       const json = await AsyncStorage.getItem(STORAGE_KEY);
       if (json) {
         setRecipes(JSON.parse(json));
-        console.log('✅ Recipes loaded from AsyncStorage');
       }
     } catch (err) {
       console.error('❌ Gagal load recipes:', err);
@@ -80,7 +78,6 @@ export const RecipesProvider = ({ children }: { children: React.ReactNode }) => 
 
     const updated = [...recipes, newRecipe];
     setRecipes(updated);
-    ToastAndroid.show('Resep ditambahkan', ToastAndroid.SHORT);
     return newId;
   };
 
@@ -95,29 +92,36 @@ export const RecipesProvider = ({ children }: { children: React.ReactNode }) => 
 
     const updatedRecipes = recipes.map(r => (r.id === id ? updatedWithIds : r));
     setRecipes(updatedRecipes);
-    ToastAndroid.show('Resep diperbarui', ToastAndroid.SHORT);
   };
 
- const deleteRecipe = async (id: string): Promise<void> => {
-  const recipeToDelete = recipes.find((r) => r.id === id);
+  const deleteRecipe = async (id: string): Promise<void> => {
+    const recipeToDelete = recipes.find((r) => r.id === id);
 
-  // 🔥 Hapus gambar-gambar permanen (jika ada)
-  if (recipeToDelete?.imageUris?.length) {
-    for (const uri of recipeToDelete.imageUris) {
-      try {
-        await FileSystem.deleteAsync(uri, { idempotent: true });
-        console.log(`🗑️ Gambar dihapus: ${uri}`);
-      } catch (err) {
-        console.warn(`❌ Gagal hapus gambar: ${uri}`, err);
+    // Hapus gambar
+    if (recipeToDelete?.imageUris?.length) {
+      for (const uri of recipeToDelete.imageUris) {
+        try {
+          await FileSystem.deleteAsync(uri, { idempotent: true });
+        } catch (err) {
+          console.warn(`❌ Gagal hapus gambar: ${uri}`, err);
+        }
       }
     }
-  }
 
-  // Hapus dari state
-  const filtered = recipes.filter((r) => r.id !== id);
-  setRecipes(filtered);
-  ToastAndroid.show('Resep dihapus', ToastAndroid.SHORT);
-};
+    // Update list
+    const filtered = recipes.filter((r) => r.id !== id);
+    setRecipes(filtered);
+
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+      await reloadRecipes(); // ⬅️ WAJIB ditunggu
+    } catch (err) {
+      console.error('❌ Gagal update storage:', err);
+    }
+
+  };
+
+
   const updateRecipeImage = (id: string, uri: string) => {
     setRecipes(prev =>
       prev.map(r =>
@@ -131,13 +135,14 @@ export const RecipesProvider = ({ children }: { children: React.ReactNode }) => 
   const reloadRecipes = async () => {
     try {
       const json = await AsyncStorage.getItem(STORAGE_KEY);
-      if (json) {
-        setRecipes(JSON.parse(json));
-      }
+      const parsed = json ? JSON.parse(json) : [];
+      setRecipes(parsed); // ✅ always set, even if empty
     } catch (err) {
-      console.error('❌ Failed to reload recipes:', err);
+      setRecipes([]); // ✅ fallback ke empty state
     }
+
   };
+
 
   const getRecipeById = (id: string) => {
     return recipes.find(r => r.id === id);

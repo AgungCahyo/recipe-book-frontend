@@ -3,6 +3,7 @@ import { Alert, Text, TouchableOpacity } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import Papa from 'papaparse';
+import { useAlert } from 'context/AlertContext';
 
 type ImportCSVProps = {
   onImport: (data: any[]) => void;
@@ -10,6 +11,7 @@ type ImportCSVProps = {
 };
 
 export default function ImportCSV({ onImport, label = 'Import from CSV' }: ImportCSVProps) {
+  const {showAlert} = useAlert();
   const handleImport = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -23,7 +25,7 @@ export default function ImportCSV({ onImport, label = 'Import from CSV' }: Impor
       const fileName = result.assets[0].name;
 
       if (!fileName.endsWith('.csv')) {
-        Alert.alert('Format salah', 'File harus berekstensi .csv');
+        showAlert('File harus berekstensi .csv', 'error');
         return;
       }
 
@@ -37,18 +39,16 @@ export default function ImportCSV({ onImport, label = 'Import from CSV' }: Impor
       });
 
       if (parsed.errors.length) {
-        console.log('CSV Parse errors:', parsed.errors);
-        Alert.alert('Format Error', 'CSV tidak valid atau ada kesalahan format.');
+        showAlert('CSV tidak valid atau ada kesalahan format.', 'error');
         return;
       }
 
       const data = parsed.data as any[];
 
       onImport(data); // Lempar ke parent
-      Alert.alert('Berhasil', `Berhasil mengimpor ${data.length} data.`);
+      showAlert( `Berhasil mengimpor ${data.length} data.`, 'success');
     } catch (error) {
-      console.error('❌ Gagal import CSV:', error);
-      Alert.alert('Gagal', 'Terjadi kesalahan saat import.');
+      showAlert('Terjadi kesalahan saat import.', 'error');
     }
   };
 

@@ -47,7 +47,6 @@ export const DraftRecipeProvider = ({ children }: { children: ReactNode }) => {
           setDraftState(saved);
         }
       } catch (err) {
-        console.warn('Gagal load draft:', err);
       }
     };
     loadDraft();
@@ -59,7 +58,6 @@ export const DraftRecipeProvider = ({ children }: { children: ReactNode }) => {
       try {
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
       } catch (err) {
-        console.warn('Gagal simpan draft:', err);
       }
     };
     saveDraft();

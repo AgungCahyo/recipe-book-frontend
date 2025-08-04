@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,11 +13,15 @@ import DropdownRecipes from 'app/components/DropdownRecipes';
 import CustomDropdown from 'app/components/DropdownCustom';
 import { useRecipeForm } from 'hooks/useRecipeForm';
 import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator } from 'react-native';
+
 
 export default function RecipeForm() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { satuanList, ingredients } = useIngredients();
   const router = useRouter();
+  const [loadingImages, setLoadingImages] = useState<boolean[]>([]);
+
 
   const {
     title, setTitle,
@@ -31,6 +35,7 @@ export default function RecipeForm() {
     handleSave,
     pickImage,
     editing,
+    isUploading
   } = useRecipeForm(id);
 
   const handleRemoveImage = (index: number) => {
@@ -43,6 +48,11 @@ export default function RecipeForm() {
     const selected = ingredients.find((i) => i.name === ingredientName);
     if (selected) setUnit(selected.unit);
   }, [ingredientName]);
+
+  useEffect(() => {
+    setLoadingImages(Array(imageUris.length).fill(true));
+  }, [imageUris]);
+
 
   return (
     <KeyboardAwareScrollView
@@ -73,7 +83,7 @@ export default function RecipeForm() {
         onPress={pickImage}
         className="bg-gray-100 dark:bg-neutral-800 py-4 px-6 rounded-2xl border border-dashed flex-row justify-center items-center gap-2 border-gray-400 dark:border-gray-600 mb-4"
       >
-         <Ionicons
+        <Ionicons
           name='add-circle-outline'
           size={24}
           color="white"
@@ -81,21 +91,37 @@ export default function RecipeForm() {
         <Text className="text-center text-gray-700 dark:text-gray-300 font-medium">Tambah Gambar Resep</Text>
       </TouchableOpacity>
 
-      {imageUris.length > 0 && (
-        <View className="flex flex-row flex-wrap gap-3 mb-6">
-          {imageUris.map((uri, index) => (
-            <View key={index} className="relative w-[30%]">
-              <Image source={{ uri }} className="w-full h-32 rounded-xl border border-gray-300" />
+     {imageUris.length > 0 && (
+  <View className="relative mb-6">
+    <View className="flex flex-row flex-wrap gap-3">
+      {imageUris.map((uri, index) => (
+        <View key={index} className="relative w-[30%] h-32">
+          {uri === 'loading' ? (
+            <View className="w-full h-full rounded-xl bg-gray-200 dark:bg-neutral-700 items-center justify-center">
+              <ActivityIndicator size="small" color="#3B82F6" />
+              <Text className="text-xs mt-1 text-gray-500 dark:text-gray-400">Mengunggah...</Text>
+            </View>
+          ) : (
+            <>
+              <Image
+                source={{ uri }}
+                className="w-full h-full rounded-xl border border-gray-300"
+              />
               <TouchableOpacity
                 onPress={() => handleRemoveImage(index)}
                 className="absolute top-1 right-1 bg-red-500 w-6 h-6 rounded-full items-center justify-center"
               >
                 <Text className="text-white font-bold text-xs">×</Text>
               </TouchableOpacity>
-            </View>
-          ))}
+            </>
+          )}
         </View>
-      )}
+      ))}
+    </View>
+  </View>
+)}
+
+
 
       {/* Langkah-langkah */}
       <Text className="text-gray-700 dark:text-gray-200 font-semibold mb-2">Steps (Opsional)</Text>

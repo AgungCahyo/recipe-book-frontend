@@ -1,8 +1,9 @@
 // context/IngredientsContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import showToast from '../app/utils/showToast';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import uuid from 'react-native-uuid';
+import { useAlert } from './AlertContext'; // pastikan path-nya benar
+
 
 const satuanList = ['gram', 'ml', 'lembar', 'liter', 'butir', 'pcs', 'sdt', 'sdm', 'buah', 'sachet', 'biji', 'porsi',];
 
@@ -64,6 +65,7 @@ export function IngredientsProvider({ children }: { children: React.ReactNode })
   const [idBeingEdited, setIdBeingEdited] = useState<string | null>(null);
   const [isFormModalVisible, setIsFormModalVisible] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const { showAlert } = useAlert();
 
   const resetForm = () => {
     setTimeout(() => {
@@ -92,7 +94,7 @@ export function IngredientsProvider({ children }: { children: React.ReactNode })
           : item
       );
       setIngredients(updated);
-      showToast('Perubahan disimpan');
+     showAlert('Perubahan disimpan', 'success'); 
     } else {
       const newId = uuid.v4() as string;
       setIngredients((prev) => [
@@ -106,7 +108,7 @@ export function IngredientsProvider({ children }: { children: React.ReactNode })
           pricePerUnit,
         },
       ]);
-      showToast('Bahan berhasil ditambahkan');
+     showAlert('Bahan berhasil ditambahkan', 'success');
     }
 
     resetForm();
@@ -152,7 +154,7 @@ export function IngredientsProvider({ children }: { children: React.ReactNode })
   const clearAllIngredients = async () => {
     setIngredients([]);
     await AsyncStorage.removeItem(STORAGE_KEY);
-    showToast('Semua data bahan dihapus');
+   showAlert('Semua data bahan dihapus', 'success');
   };
 
   const addIngredient = (item: Ingredient) => {

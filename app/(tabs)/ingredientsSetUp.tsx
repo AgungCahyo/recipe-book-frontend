@@ -14,7 +14,9 @@ import ImportCSV from 'app/components/ImportCSV';
 import IngredientItem from 'app/components/IngredientItems';
 import { Ingredient } from 'context/IngredientsContext';
 import useSelection from 'hooks/useSelection';
-import showToast from 'app/utils/showToast';
+import SearchBar from 'app/components/SearchBar';
+import { useAlert } from 'context/AlertContext';
+
 export default function IngredientsSetup() {
   const {
     ingredients,
@@ -39,6 +41,8 @@ export default function IngredientsSetup() {
 
   } = useSelection<Ingredient>();
 
+  const { showAlert } = useAlert()
+
   const deleteSelected = () => {
     removeManyIngredients(selectedIds);
     cancelSelection();
@@ -49,7 +53,6 @@ export default function IngredientsSetup() {
       item.name.toLowerCase().includes(search.toLowerCase())
     );
   }, [ingredients, search]);
-
   const renderItem = useCallback(
     ({ item }: { item: Ingredient }) => {
       const isSelected = selectedIds.includes(item.id);
@@ -66,7 +69,9 @@ export default function IngredientsSetup() {
             }
           }}
           onLongPress={() => {
-            if (!isSelectionMode) enableSelection(item.id);
+            if (!isSelectionMode) {
+              enableSelection(item.id);
+            }
           }}
         />
       );
@@ -83,19 +88,12 @@ export default function IngredientsSetup() {
       keyboardVerticalOffset={80}
     >
       {/* Header */}
-      <View className="px-5 pt-10 pb-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-black shadow-sm">
-        <Text className="text-2xl font-semibold text-gray-900 dark:text-white text-center">
-          Daftar Bahan
-        </Text>
-        <TextInput
-          placeholder="Cari bahan..."
-          placeholderTextColor="#9CA3AF"
-          value={search}
-          onChangeText={setSearch}
-          className="mt-4 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl"
-        />
-      </View>
-
+      <SearchBar
+        placeholder='Cari bahan...'
+        title='Daftar bahan'
+        value={search}
+        onChangeText={setSearch}
+      />
       {/* List */}
       <FlatList
         data={filteredIngredients}
@@ -107,6 +105,7 @@ export default function IngredientsSetup() {
         initialNumToRender={10}
         maxToRenderPerBatch={10}
         windowSize={21}
+        removeClippedSubviews={true}
       />
 
       {/* Form */}
@@ -141,9 +140,9 @@ export default function IngredientsSetup() {
 
                 if (valid.length > 0) {
                   addManyIngredients(valid);
-                  showToast(`${valid.length} bahan berhasil diimpor`);
+                  showAlert(`${valid.length} bahan berhasil diimpor`, 'success');
                 } else {
-                  showToast('Tidak ada bahan baru yang diimpor');
+                  showAlert('Tidak ada bahan baru yang diimpor', 'error');
                 }
               }}
             />
