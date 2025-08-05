@@ -1,6 +1,6 @@
 // app/_Layout.tsx
 
-import { Stack, Tabs } from 'expo-router';
+import { Stack } from 'expo-router';
 import { RecipesProvider } from 'context/RecipesContext';
 import { IngredientsProvider } from 'context/IngredientsContext';
 import { DraftRecipeProvider } from 'context/DraftRecipeContext';

@@ -1,6 +1,4 @@
-// app/recipes/[id].tsx
-
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,10 +7,14 @@ import {
   TouchableOpacity,
   Alert,
   useColorScheme,
+  Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRecipes } from 'context/RecipesContext';
 import Slider from '@react-native-community/slider';
+
+
+const screenWidth = Dimensions.get('window').width;
 
 export default function RecipeDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,19 +23,28 @@ export default function RecipeDetailPage() {
   const theme = useColorScheme();
   const isDark = theme === 'dark';
 
-  const [margin, setMargin] = useState(60);
   const recipe = recipes.find((r) => r.id === id);
   const hpp = recipe?.hpp || 0;
-  const displayedPrice = Math.round(hpp + hpp * margin / 100);
+
+  const [margin, setMargin] = useState(60);
+  const [displayedPrice, setDisplayedPrice] = useState(0);
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [tempMargin, setTempMargin] = useState(margin); // value sementara saat geser
+  const [sliderVal, setSliderVal] = useState(60); // untuk tampilan real-time
 
   useEffect(() => {
-    if (!recipe) {
-      const timeout = setTimeout(() => {
-        router.replace('/recipes');
-      }, 100);
-      return () => clearTimeout(timeout);
-    }
-  }, [recipe]);
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    timerRef.current = setTimeout(() => {
+      const newPrice = Math.round(hpp + (hpp * margin) / 100);
+      setDisplayedPrice(newPrice);
+    }, 100);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [margin, hpp]);
 
   if (!recipe) {
     return (
@@ -59,92 +70,105 @@ export default function RecipeDetailPage() {
 
   return (
     <View className="flex-1 bg-white dark:bg-black">
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        {/* IMAGES */}
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Gambar */}
         {Array.isArray(recipe.imageUris) && recipe.imageUris.length > 0 && (
           <ScrollView
             horizontal
+            pagingEnabled
             showsHorizontalScrollIndicator={false}
-            className="mb-6 px-5"
+            className="mb-4"
           >
             {recipe.imageUris.map((uri, index) => (
               <Image
                 key={index}
                 source={{ uri }}
-                className="w-72 h-56 mr-4 rounded-2xl"
+                style={{ width: screenWidth, height: 280 }}
+                className="rounded-none"
                 resizeMode="cover"
               />
             ))}
           </ScrollView>
         )}
 
-        {/* TITLE & CATEGORY */}
-        <View className="px-6">
-          <Text className="text-3xl font-extrabold text-center mb-1 text-gray-900 dark:text-white">
+        {/* Konten */}
+        <View className="px-5 pb-24">
+          <Text className="text-3xl font-extrabold text-center mt-4 text-gray-900 dark:text-white">
             {recipe.title}
           </Text>
-          <Text className="text-center text-base text-gray-500 dark:text-gray-400 mb-6">
+          <Text className="text-center text-sm text-gray-500 dark:text-gray-400 mb-6">
             {recipe.category || 'Tanpa Kategori'}
           </Text>
 
-          {/* DESCRIPTION */}
-          <Text className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-2">
+          {/* Langkah */}
+          <Text className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
             Langkah-langkah
           </Text>
-          <Text className="text-base text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-            {recipe.description || '-'}
-          </Text>
+          {recipe.description ? (
+            <Text className="text-base text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
+              {recipe.description}
+            </Text>
+          ) : (
+            <Text className="text-gray-400 mb-6 italic">Tidak ada deskripsi langkah.</Text>
+          )}
 
-          {/* INGREDIENTS */}
-          <Text className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-3">
+          {/* Bahan */}
+          <Text className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">
             Bahan-bahan
           </Text>
-          {recipe.ingredients.map((item) => (
-            <View key={item.id} className="flex-row items-start gap-2 mb-2">
-              <Text className="text-base text-gray-700 dark:text-gray-400">●</Text>
-              <Text className="text-base text-gray-900 dark:text-white">
-                {item.quantity} {item.unit} {item.name}
-              </Text>
-            </View>
-          ))}
-
-          {/* HPP & MARGIN */}
-          <View className="mt-8 mb-4">
-            <Text className="text-lg font-semibold text-black dark:text-white">
-              Total HPP: Rp {hpp.toLocaleString('id-ID')}
-            </Text>
+          <View className="space-y-2">
+            {recipe.ingredients.map((item) => (
+              <View key={item.id} className="flex-row items-center gap-2">
+                <View className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-600 mt-1" />
+                <Text className="text-base text-gray-900 dark:text-white">
+                  {item.quantity} {item.unit} {item.name}
+                </Text>
+              </View>
+            ))}
           </View>
 
-          <View className="mb-12">
-            <Text className="text-gray-700 dark:text-gray-300 font-semibold mb-2">
-              Atur Margin (%)
-            </Text>
-            <Text className="text-lg text-gray-900 dark:text-white mb-2">
-              Margin: {margin}%
-            </Text>
-            <Slider
-              onValueChange={(val) => setMargin(val)}
-              value={margin}
-              minimumValue={0}
-              maximumValue={500}
-              step={5}
-            />
-            <Text className="text-xl font-bold text-black dark:text-white mt-4">
-              Harga Jual: Rp {displayedPrice.toLocaleString('id-ID')}
-            </Text>
+          {/* HPP & Slider */}
+          <View className="mt-10">
+            {/* HPP & Slider */}
+            <View className="mt-10">
+              <Text className="text-gray-700 dark:text-gray-300 font-medium mb-2">Atur Margin (%)</Text>
+              <View className="flex-row justify-between items-center mb-2">
+                <Text className="text-sm text-gray-500 dark:text-gray-400">
+                  Margin: {margin}%
+                </Text>
+                <Text className="text-sm text-gray-500 dark:text-gray-400">
+                  HPP: Rp {hpp.toLocaleString('id-ID')}
+                </Text>
+              </View>
+
+              <Slider
+                value={margin}
+                minimumValue={0}
+                maximumValue={300}
+                step={5}
+                onValueChange={setMargin}
+                minimumTrackTintColor="#3B82F6"
+                maximumTrackTintColor="#CBD5E1"
+              />
+
+              <Text className="text-xl font-bold text-black dark:text-white mt-4">
+                Harga Jual: Rp {(hpp + (hpp * margin) / 100).toLocaleString('id-ID')}
+              </Text>
+            </View>
+
+
           </View>
         </View>
       </ScrollView>
 
-      {/* ACTION BUTTONS */}
-      <View className="absolute bottom-0 left-0 right-0 px-5 py-4 bg-white dark:bg-black border-t border-gray-100 dark:border-gray-800 flex-row gap-4">
+      {/* Aksi */}
+      <View className="absolute bottom-0 left-0 right-0 px-5 py-4 bg-white dark:bg-black border-t border-gray-100 dark:border-gray-800 flex-row gap-3">
         <TouchableOpacity
           onPress={() => router.push({ pathname: '/recipes/recipeForm', params: { id: recipe.id } })}
           className="flex-1 py-3 rounded-full bg-yellow-500"
         >
-          <Text className="text-center text-white text-base font-semibold">Edit Resep</Text>
+          <Text className="text-center text-white text-base font-semibold">Edit</Text>
         </TouchableOpacity>
-
         <TouchableOpacity
           onPress={handleDelete}
           className="flex-1 py-3 rounded-full bg-red-600"

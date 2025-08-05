@@ -17,7 +17,7 @@ export default function RootLayout() {
     <IngredientsProvider>
       <DraftRecipeProvider>
         <RecipesProvider>
-          <SafeAreaView className="flex-1 bg-background-light dark:bg-background-dark">
+          <SafeAreaView  className="flex-1 bg-background-light dark:bg-background-dark">
             <StatusBar style={theme === 'dark' ? 'light' : 'dark'} backgroundColor="transparent" translucent />
             <Slot />
             <AlertMessage />

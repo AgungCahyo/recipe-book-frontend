@@ -10,7 +10,7 @@ type SearchBarProps = {
 
 export default function SearchBar({ title, placeholder, value, onChangeText }: SearchBarProps) {
   return (
-    <View className="px-5 pt-10 pb-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-black shadow-sm">
+    <View className="px-5 pt-10 pb-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-black">
       <Text className="text-2xl font-semibold text-gray-900 dark:text-white text-center">
         {title}
       </Text>

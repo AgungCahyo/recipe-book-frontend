@@ -38,6 +38,7 @@ type IngredientContextType = {
   resetForm: () => void;
   clearAllIngredients: () => void;
   addIngredient: (item: Ingredient) => void;
+  reloadIngredients:() => void;
   addIngredientFromCSV: (item: {
     name: string;
     quantity: string;
@@ -174,7 +175,6 @@ const addIngredientFromCSV = (item: {
   if (!name || !unit || isNaN(qty) || isNaN(price) || qty <= 0 || price <= 0) {
     return null;
   }
-
   const id = uuid.v4() as string;
   const pricePerUnit = parseFloat((price / qty).toFixed(2));
 
@@ -261,6 +261,7 @@ const parseIngredientFromCSV = (item: {
         removeManyIngredients,
         addManyIngredients,
         parseIngredientFromCSV,
+       reloadIngredients: loadIngredients
       }}
     >
       {children}

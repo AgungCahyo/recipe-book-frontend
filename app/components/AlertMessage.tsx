@@ -1,8 +1,8 @@
-// components/AlertMessage.tsx
-import { Animated, View, StyleSheet } from 'react-native'
 import { useEffect, useRef } from 'react'
+import { Animated, View, StyleSheet } from 'react-native'
 import { useAlert } from 'context/AlertContext'
 import AlertBox from './AlertBox'
+import { playAlertSound } from '../../utils/soundEffect' // import sound player
 
 export default function AlertMessage() {
   const { alert, hideAlert } = useAlert()
@@ -11,7 +11,9 @@ export default function AlertMessage() {
 
   useEffect(() => {
     if (alert?.visible) {
-      // Animasi masuk
+      // 👇 Play sound saat alert muncul
+      playAlertSound(alert.type)
+
       Animated.parallel([
         Animated.timing(translateY, {
           toValue: 0,
@@ -25,7 +27,6 @@ export default function AlertMessage() {
         }),
       ]).start()
     } else {
-      // Animasi keluar
       Animated.parallel([
         Animated.timing(translateY, {
           toValue: -100,

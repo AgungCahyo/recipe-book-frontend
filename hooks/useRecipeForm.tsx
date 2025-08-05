@@ -1,6 +1,5 @@
 // hooks/useRecipeForm.ts
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 import uuid from 'react-native-uuid';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -11,6 +10,10 @@ import { useIngredients } from '../context/IngredientsContext';
 import { useDraftRecipe } from '../context/DraftRecipeContext';
 import { useAlert } from '../context/AlertContext';
 
+export type ImageStatus = {
+  uri: string;
+  status: 'loading' | 'done' | 'error';
+};
 
 export function useRecipeForm(id?: string) {
   const router = useRouter();
@@ -21,25 +24,37 @@ export function useRecipeForm(id?: string) {
 
   const editing = !!id;
   const existingRecipe = recipes.find((r) => r.id === id);
+
   const [isUploading, setIsUploading] = useState(false);
+
+  const [imageUris, setImageUris] = useState<ImageStatus[]>([]);
+  const [uploadQueue, setUploadQueue] = useState<ImageStatus[]>([]);
 
   const recipeData = useMemo(() => {
     if (editing && existingRecipe) {
       return {
         title: existingRecipe.title,
         steps: existingRecipe.description?.split('\n') || [''],
-        imageUris: existingRecipe.imageUris || [],
+        imageUris: (existingRecipe.imageUris || []).map((uri) => ({
+          uri,
+          status: 'done' as const,
+        })),
         ingredients: existingRecipe.ingredients || [],
         category: existingRecipe.category || '',
       };
     }
-    return draft;
+    return {
+      ...draft,
+      imageUris: (draft.imageUris || []).map((uri) => ({
+        uri,
+        status: 'done' as const,
+      })),
+    };
   }, [editing, existingRecipe, draft]);
 
   const [title, setTitle] = useState('');
   const [steps, setSteps] = useState<string[]>(['']);
   const [ingredientsList, setIngredientsList] = useState<any[]>([]);
-  const [imageUris, setImageUris] = useState<string[]>([]);
   const [category, setCategory] = useState('');
 
   const [ingredientName, setIngredientName] = useState('');
@@ -67,7 +82,7 @@ export function useRecipeForm(id?: string) {
       prev.category === category;
 
     if (!isSame) {
-      const newDraft = { title, steps, ingredients: ingredientsList, imageUris, category };
+      const newDraft = { title, steps, ingredients: ingredientsList, imageUris: imageUris.map(i => i.uri), category };
       updateDraft(newDraft);
       prevDraftRef.current = newDraft;
     }
@@ -146,7 +161,7 @@ export function useRecipeForm(id?: string) {
       title: title.trim(),
       description: cleanedSteps.length > 0 ? cleanedSteps.join('\n') : '',
       ingredients: ingredientsList,
-      imageUris,
+      imageUris: imageUris.map((i) => i.uri),
       category: category.trim(),
       hpp: calculateTotalHPP(),
     };
@@ -188,8 +203,6 @@ export function useRecipeForm(id?: string) {
       return;
     }
 
-    setIsUploading(true);
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
@@ -197,34 +210,46 @@ export function useRecipeForm(id?: string) {
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      try {
-        const placeholders = result.assets.map(() => 'loading');
-        setImageUris((prev) => [...prev, ...placeholders]);
+      const placeholders: ImageStatus[] = result.assets.map(() => ({
+        uri: '',
+        status: 'loading' as const,
+      }));
+      setUploadQueue((prev) => [...prev, ...placeholders]);
+      setTimeout(() => {
+        startImageUpload(result.assets);
+      }, 10);
+    }
+  };
 
-        const resizedUris = await Promise.all(
-          result.assets.map(async (asset) => {
-            const manipulated = await ImageManipulator.manipulateAsync(
-              asset.uri,
-              [{ resize: { width: 800 } }],
-              { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-            );
-            return manipulated.uri;
-          })
-        );
 
-        const savedUris = await Promise.all(resizedUris.map(saveImagePermanently));
+  const startImageUpload = async (assets: ImagePicker.ImagePickerAsset[]) => {
+    setIsUploading(true);
 
-        setImageUris((prev) => {
-          const prevWithoutPlaceholders = prev.filter((uri) => uri !== 'loading');
-          return [...prevWithoutPlaceholders, ...savedUris];
-        });
-      } catch (err) {
-        console.error('❌ Gagal upload:', err);
-        showAlert('Gagal menyimpan gambar.', 'error');
-        setImageUris((prev) => prev.filter((uri) => uri !== 'loading'));
-      } finally {
-        setIsUploading(false);
-      }
+    try {
+      const resizedUris = await Promise.all(
+        assets.map(async (asset) => {
+          const manipulated = await ImageManipulator.manipulateAsync(
+            asset.uri,
+            [{ resize: { width: 800 } }],
+            { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+          );
+          return manipulated.uri;
+        })
+      );
+
+      const savedUris = await Promise.all(resizedUris.map(saveImagePermanently));
+      const imageStatusList: ImageStatus[] = savedUris.map((uri) => ({
+        uri,
+        status: 'done' as const,
+      }));
+      setImageUris((prev) => [...prev, ...imageStatusList]);
+
+    } catch (err) {
+      console.error('❌ Gagal upload:', err);
+      showAlert('Gagal menyimpan gambar.', 'error');
+    } finally {
+      setUploadQueue((prev) => prev.slice(assets.length));
+      setIsUploading(false);
     }
   };
 
@@ -234,7 +259,8 @@ export function useRecipeForm(id?: string) {
     ingredientsList, setIngredientName, setQuantity, setUnit,
     ingredientName, quantity, unit,
     addIngredient, removeIngredient,
-    imageUris, setImageUris,
+    imageUris: [...imageUris, ...uploadQueue], // digabungkan untuk ditampilkan
+    setImageUris,
     category, setCategory,
     calculateTotalHPP,
     handleSave,

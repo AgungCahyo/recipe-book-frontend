@@ -1,9 +1,14 @@
-// app/ingredients/[id].tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useIngredients } from 'context/IngredientsContext';
-import showToast from '../utils/showToast';
+import showToast from 'utils/showToast';
 
 export default function EditIngredientPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -20,7 +25,7 @@ export default function EditIngredientPage() {
 
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('');
-  const [unit, setUnit] = useState(satuanList[0]);
+  const [unit, setUnit] = useState('');
   const [totalPrice, setTotalPrice] = useState('');
 
   useEffect(() => {
@@ -45,8 +50,8 @@ export default function EditIngredientPage() {
 
   if (!id || !ingredients.find((item) => item.id === id)) {
     return (
-      <View className="p-4">
-        <Text>Bahan tidak ditemukan.</Text>
+      <View className="flex-1 justify-center items-center bg-white dark:bg-black px-4">
+        <Text className="text-gray-500 dark:text-gray-400">Bahan tidak ditemukan.</Text>
       </View>
     );
   }
@@ -73,50 +78,96 @@ export default function EditIngredientPage() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16 }}>
-      <Text className="text-lg font-bold mb-4">Edit Bahan</Text>
+    <ScrollView
+      contentContainerStyle={{ paddingBottom: 100 }}
+      className="flex-1 px-5 pt-8 bg-white dark:bg-black"
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <Text className="text-3xl font-bold text-center text-blue-600 dark:text-blue-400 mb-10">
+        Edit Bahan
+      </Text>
 
-      <Text className="mb-1">Nama Bahan</Text>
-      <TextInput
-        value={name}
-        onChangeText={setName}
-        className="border p-2 rounded mb-4"
-      />
+      {/* Nama Bahan */}
+      <View className="mb-6">
+        <Text className="text-gray-700 dark:text-gray-300 font-semibold mb-2">
+          Nama Bahan
+        </Text>
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          placeholder="Contoh: Gula Pasir"
+          placeholderTextColor="#9CA3AF"
+          className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-3 text-black dark:text-white shadow-sm"
+        />
+      </View>
 
-      <Text className="mb-1">Jumlah</Text>
-      <TextInput
-        value={quantity}
-        onChangeText={setQuantity}
-        keyboardType="numeric"
-        className="border p-2 rounded mb-4"
-      />
+      {/* Jumlah */}
+      <View className="mb-6">
+        <Text className="text-gray-700 dark:text-gray-300 font-semibold mb-2">
+          Jumlah
+        </Text>
+        <TextInput
+          value={quantity}
+          onChangeText={setQuantity}
+          keyboardType="numeric"
+          placeholder="Contoh: 1000"
+          placeholderTextColor="#9CA3AF"
+          className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-3 text-black dark:text-white shadow-sm"
+        />
+      </View>
 
-      <Text className="mb-1">Satuan</Text>
-      <ScrollView horizontal className="mb-4">
-        {satuanList.map((item) => (
-          <TouchableOpacity
-            key={item}
-            onPress={() => setUnit(item)}
-            className={`px-3 py-2 rounded mr-2 ${unit === item ? 'bg-blue-500' : 'bg-gray-200'}`}
-          >
-            <Text className={unit === item ? 'text-white' : 'text-black'}>{item}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* Satuan */}
+      <View className="mb-6">
+        <Text className="text-gray-700 dark:text-gray-300 font-semibold mb-2">
+          Satuan
+        </Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
+          {satuanList.map((item) => (
+            <TouchableOpacity
+              key={item}
+              onPress={() => setUnit(item)}
+              className={`px-4 py-2 rounded-full border ${
+                unit === item
+                  ? 'bg-blue-500 border-blue-500'
+                  : 'bg-gray-100 dark:bg-neutral-800 border-gray-300 dark:border-gray-600'
+              }`}
+            >
+              <Text
+                className={`text-sm font-medium ${
+                  unit === item ? 'text-white' : 'text-gray-800 dark:text-gray-200'
+                }`}
+              >
+                {item}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
-      <Text className="mb-1">Total Harga</Text>
-      <TextInput
-        value={totalPrice}
-        onChangeText={setTotalPrice}
-        keyboardType="numeric"
-        className="border p-2 rounded mb-6"
-      />
+      {/* Total Harga */}
+      <View className="mb-8">
+        <Text className="text-gray-700 dark:text-gray-300 font-semibold mb-2">
+          Total Harga (Rp)
+        </Text>
+        <TextInput
+          value={totalPrice}
+          onChangeText={setTotalPrice}
+          keyboardType="numeric"
+          placeholder="Contoh: 13000"
+          placeholderTextColor="#9CA3AF"
+          className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-3 text-black dark:text-white shadow-sm"
+        />
+      </View>
 
+      {/* Tombol Simpan */}
       <TouchableOpacity
         onPress={handleSave}
-        className="bg-green-600 p-3 rounded items-center"
+        className="bg-green-600 py-4 rounded-2xl shadow-lg flex-row justify-center items-center gap-2"
       >
-        <Text className="text-white font-bold">Simpan Perubahan</Text>
+        <Text className="text-white font-bold text-lg tracking-wide">
+          Simpan Perubahan
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );

@@ -14,6 +14,6 @@
     "types",
     "app",
     "config",
-    "nativewind-env.d.ts", "app/utils", "utils",
+    "nativewind-env.d.ts", "utils", "utils",
   ]
 }
