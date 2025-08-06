@@ -9,12 +9,13 @@ import { RecipesProvider } from 'context/RecipesContext';
 import { AlertProvider } from 'context/AlertContext';
 import AlertMessage from '../app/components/AlertMessage';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import CustomTabs from './components/CustomTab';
+
 
 export default function RootLayout() {
   const theme = useColorScheme();
 
   return (
-
     <GestureHandlerRootView>
       <AlertProvider>
         <DraftRecipeProvider>
@@ -22,7 +23,7 @@ export default function RootLayout() {
             <RecipesProvider>
               <SafeAreaView className="flex-1 bg-background-light dark:bg-background-dark">
                 <StatusBar style={theme === 'dark' ? 'light' : 'dark'} backgroundColor="transparent" translucent />
-                <Slot />
+<Slot/>
                 <AlertMessage />
               </SafeAreaView>
             </RecipesProvider>

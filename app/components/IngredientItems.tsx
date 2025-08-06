@@ -18,10 +18,6 @@ function IngredientItem({
   onPress,
   onLongPress,
 }: Props) {
-  console.log('🥬 render IngredientItem:', item.name);
-if (typeof item.name !== 'string') {
-  console.warn('⚠️ item.name bukan string:', item.name);
-}
 
   return (
     <TouchableOpacity
@@ -48,13 +44,13 @@ if (typeof item.name !== 'string') {
           </Text>
 
           <Text className="text-sm text-gray-500 mt-0.5">
-  {`${item.quantity} ${item.unit} • Rp${item.totalPrice.toLocaleString()}`}
-</Text>
+            {`${item.quantity} ${item.unit} • Rp${item.totalPrice.toLocaleString()}`}
+          </Text>
 
 
-         <Text className="text-xs text-gray-400 mt-0.5 italic">
-  {`Rp${item.pricePerUnit.toLocaleString()} / ${item.unit}`}
-</Text>
+          <Text className="text-xs text-gray-400 mt-0.5 italic">
+            {`Rp${item.pricePerUnit.toLocaleString()} / ${item.unit}`}
+          </Text>
 
         </View>
       </View>

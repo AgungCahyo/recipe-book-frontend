@@ -3,22 +3,21 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function RecipeCard({ item, isDark, onPress }: any) {
   const cardWidth = (Dimensions.get('window').width - 40 - 12) / 2;
-console.log('📦 render RecipeCard:', item.title);
   return (
-   <TouchableOpacity
-  onPress={onPress}
-  activeOpacity={0.85}
-  style={[
-    {
-      width: cardWidth,
-      borderRadius: 12,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: isDark ? '#374151' : '#E5E7EB',
-      backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-    },
-  ]}
->
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={[
+        {
+          width: cardWidth,
+          borderRadius: 12,
+          overflow: 'hidden',
+          borderWidth: 1,
+          borderColor: isDark ? '#374151' : '#E5E7EB',
+          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+        },
+      ]}
+    >
 
       {/* === Thumbnail Image or Placeholder === */}
       {item.imageUris?.[0] ? (

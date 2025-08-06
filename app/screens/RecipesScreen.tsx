@@ -1,10 +1,12 @@
+
+
 import React, { useCallback, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
+  SafeAreaView, TouchableOpacity
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useRecipes } from 'context/RecipesContext';
@@ -51,16 +53,15 @@ export default function Recipes() {
 
   const filtered = useMemo(() => {
     const keyword = search.toLowerCase();
-    
+
     return recipes
-    .filter((r) => r && r.id && r.title)
-    .filter((r) => r.title.toLowerCase().includes(keyword))
+      .filter((r) => r && r.id && r.title)
+      .filter((r) => r.title.toLowerCase().includes(keyword))
       .filter((r) =>
         selectedCategory ? r.category?.toLowerCase() === selectedCategory.toLowerCase() : true
       );
   }, [search, selectedCategory, recipes]);
 
-  console.log('recipes rendered');
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-black">
       <KeyboardAvoidingView
@@ -101,24 +102,30 @@ export default function Recipes() {
               )}
             />
           ) : (
-            // <Text
-            //   className={`text-center italic mt-10 text-base ${isDark ? 'text-gray-500' : 'text-gray-400'
-            //     }`}
-            // >
-            //   Tidak ada hasil.
-            // </Text>
-            <Ionicons name='search-outline' size={50} color={isDark ? '#9CA3AF' : '#6B7280'} style={{ alignSelf: 'center', marginTop: 50 }} />
+            <Text
+              className={`text-center italic mt-10 text-base ${isDark ? 'text-gray-500' : 'text-gray-400'
+                }`}
+            >
+              Tidak ada hasil.
+            </Text>
+
           )}
         </View>
       </KeyboardAvoidingView>
 
       {/* FAB Button */}
-      {/* <View className="absolute bottom-6 right-6">
+        <TouchableOpacity onPress={() => router.push('/Recipes/recipeForm')}>
+  <Text>Test Push</Text>
+</TouchableOpacity>
+      <View className="absolute bottom-6 right-6">
         <FABAdd
           actions={[
             {
               icon: 'book-outline',
-              onPress: () => router.push('/recipes/recipeForm'),
+              onPress: () => {
+                console.log('navigating...');
+                router.push('/screens/IngredientsScreen');
+              }
             },
             {
               icon: 'leaf-outline',
@@ -129,8 +136,9 @@ export default function Recipes() {
               onPress: () => console.log('Hitung HPP'),
             },
           ]}
+          
         />
-      </View> */}
+      </View>
     </SafeAreaView>
   );
 }

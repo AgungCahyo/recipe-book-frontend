@@ -70,8 +70,6 @@ export default function CustomModal({ open, onClose, title, children }: Props) {
     opacity: opacityAnim,
   };
 
-
-
   return (
     <Modal transparent animationType="none" visible={isVisible}>
       <Animated.View style={[backdropStaticStyle, backdropAnimatedStyle]}>
@@ -87,7 +85,5 @@ export default function CustomModal({ open, onClose, title, children }: Props) {
         </Animated.View>
       </Animated.View>
     </Modal>
-
-
   );
 }

@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { FlatList, FlatListProps, RefreshControl } from 'react-native';
-
 type Props<T> = FlatListProps<T> & {
   isRefreshing: boolean;
   onRefresh: () => void;

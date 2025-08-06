@@ -43,15 +43,13 @@ export default function HomePage() {
     };
     logStorage();
   }, []);
-// app/index.tsx
-console.log('home rendered');
 
   return (
-   <ScrollView
-  showsVerticalScrollIndicator={false}
-  contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 20, paddingTop: 24 }}
-  style={{ flex: 1, backgroundColor: 'white' }} // tambahkan background & flex
->
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 20, paddingTop: 24 }}
+      style={{ flex: 1, backgroundColor: 'white' }} // tambahkan background & flex
+    >
       {/* === Greeting === */}
       <Text className="text-lg font-medium text-zinc-700 dark:text-zinc-300 mb-1">
         {getGreeting()}, Agung 👋
@@ -66,23 +64,28 @@ console.log('home rendered');
       </Text>
 
       {/* === Stats Ringkas === */}
-      <View className="flex-row gap-4 mb-6">
-        <View className="flex-1 bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-2xl p-4 shadow-sm">
-          <View className="flex-row items-center gap-2 mb-1">
-            <Ionicons name="book-outline" size={20} color="#7C3AED" />
-            <Text className="text-zinc-700 dark:text-zinc-300 text-sm">Total Resep</Text>
-          </View>
-          <Text className="text-2xl font-bold text-zinc-900 dark:text-white">{recipes.length}</Text>
-        </View>
+    <View className="flex-row gap-4 mb-6">
+  <View className="flex-1 bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-2xl p-4 shadow-sm">
+    <View className="flex-row items-center gap-2 mb-1">
+      <Ionicons name="book-outline" size={20} color="#7C3AED" />
+      <Text className="text-zinc-700 dark:text-zinc-300 text-sm">Total Resep</Text>
+    </View>
+    <Text className="text-2xl font-bold text-zinc-900 dark:text-white">
+      {recipes.length}
+    </Text>
+  </View>
 
-        <View className="flex-1 bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-2xl p-4 shadow-sm">
-          <View className="flex-row items-center gap-2 mb-1">
-            <Ionicons name="leaf-outline" size={20} color="#10B981" />
-            <Text className="text-zinc-700 dark:text-zinc-300 text-sm">Total Bahan</Text>
-          </View>
-          <Text className="text-2xl font-bold text-zinc-900 dark:text-white">{ingredients.length}</Text>
-        </View>
-      </View>
+  <View className="flex-1 bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-2xl p-4 shadow-sm">
+    <View className="flex-row items-center gap-2 mb-1">
+      <Ionicons name="leaf-outline" size={20} color="#10B981" />
+      <Text className="text-zinc-700 dark:text-zinc-300 text-sm">Total Bahan</Text>
+    </View>
+    <Text className="text-2xl font-bold text-zinc-900 dark:text-white">
+      {ingredients.length}
+    </Text>
+  </View>
+</View>
+
 
       {/* === Quick Actions === */}
       <View className="flex-row gap-4 mb-6">
@@ -106,27 +109,32 @@ console.log('home rendered');
       </View>
 
       {/* === Filter Chips === */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
-        {['Minuman', 'Cemilan', 'Favorit', 'Terbaru'].map((cat) => {
-          const isActive = selectedCategory === cat;
-          return (
-            <TouchableOpacity
-              key={cat}
-              onPress={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-full mr-2 ${isActive ? 'bg-zinc-900' : 'bg-zinc-200 dark:bg-zinc-700'
-                }`}
-            >
-              <Text
-                className={`text-sm ${isActive ? 'text-white' : 'text-zinc-800 dark:text-zinc-100'
-                  }`}
-              >
-                {cat}
-              </Text>
-            </TouchableOpacity>
+     <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
+  {['Minuman', 'Cemilan', 'Favorit', 'Terbaru'].map((cat) => {
+    const isActive = selectedCategory === cat;
+    return (
+      <TouchableOpacity
+        key={cat}
+        onPress={() => setSelectedCategory(cat)}
+        className={`px-4 py-2 mr-3 rounded-full ${isActive
+          ? 'bg-zinc-900'
+          : 'bg-zinc-200 dark:bg-zinc-700'
+          }`}
+        activeOpacity={0.8}
+      >
+        <Text
+          className={`text-sm font-medium ${isActive
+            ? 'text-white'
+            : 'text-zinc-800 dark:text-zinc-100'
+            }`}
+        >
+          {cat}
+        </Text>
+      </TouchableOpacity>
+    );
+  })}
+</ScrollView>
 
-          );
-        })}
-      </ScrollView>
 
       {/* === Resep Terbaru === */}
       <View className="mb-3">
@@ -141,37 +149,51 @@ console.log('home rendered');
         </Text>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {recentRecipes.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              onPress={() => router.push(`/recipes/${item.id}`)}
-              className="w-52 mr-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-4 shadow-sm"
-            >
-              {item.imageUris?.[0] ? (
-                <Image
-                  source={{ uri: item.imageUris[0] }}
-                  className="w-full h-28 rounded-xl mb-2"
-                  resizeMode="cover"
-                />
-              ) : (
-                <View className="w-full h-28 bg-zinc-200 dark:bg-zinc-700 rounded-xl mb-2 items-center justify-center">
-                  <Text className="text-xs text-zinc-500">Tidak Ada Gambar</Text>
-                </View>
-              )}
-              <Text
-                className="text-zinc-900 dark:text-white font-semibold mb-1"
-                numberOfLines={1}
-              >
-                {item.title}
-              </Text>
-              <Text
-                className="text-zinc-500 dark:text-zinc-400 text-xs"
-                numberOfLines={1}
-              >
-                {item.category || 'Tanpa kategori'}
-              </Text>
-            </TouchableOpacity>
-          ))}
+         {recentRecipes.length === 0 ? (
+  <Text className="text-zinc-500 dark:text-zinc-400 text-sm">
+    Belum ada resep yang ditambahkan.
+  </Text>
+) : (
+  <ScrollView
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    contentContainerStyle={{ paddingRight: 4 }}
+  >
+    {recentRecipes.map((item) => (
+      <TouchableOpacity
+        key={item.id}
+        onPress={() => router.push(`/recipes/${item.id}`)}
+        className="w-52 mr-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-4 shadow-sm"
+        activeOpacity={0.85}
+      >
+        {item.imageUris?.[0] ? (
+          <Image
+            source={{ uri: item.imageUris[0] }}
+            className="w-full h-28 rounded-xl mb-2"
+            resizeMode="cover"
+          />
+        ) : (
+          <View className="w-full h-28 bg-zinc-200 dark:bg-zinc-700 rounded-xl mb-2 items-center justify-center">
+            <Text className="text-xs text-zinc-500">Tidak Ada Gambar</Text>
+          </View>
+        )}
+        <Text
+          className="text-zinc-900 dark:text-white font-semibold mb-1"
+          numberOfLines={1}
+        >
+          {item.title}
+        </Text>
+        <Text
+          className="text-zinc-500 dark:text-zinc-400 text-xs"
+          numberOfLines={1}
+        >
+          {item.category || 'Tanpa kategori'}
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </ScrollView>
+)}
+
         </ScrollView>
       )}
 

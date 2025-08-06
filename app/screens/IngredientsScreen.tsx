@@ -19,7 +19,9 @@ import { useAlert } from 'context/AlertContext';
 import FABAdd from 'app/components/FABAdd';
 import RefreshableFlatList from 'app/components/RefreshFlatList';
 import { Ionicons } from '@expo/vector-icons';
-export default function IngredientsSetup() {
+
+
+export default function IngredientsScreen() {
   const {
     ingredients,
     removeIngredient,
@@ -118,9 +120,6 @@ export default function IngredientsSetup() {
       showAlert('Tidak ada bahan baru yang diimpor', 'error');
     }
   };
-  console.log('ingredients rendered');
-  console.log(Ionicons.glyphMap['create-outline']); // kalau undefined → error!
-  console.log('ingredients:', ingredients);
 
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-black">
