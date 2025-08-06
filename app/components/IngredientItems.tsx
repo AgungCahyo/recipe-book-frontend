@@ -18,12 +18,17 @@ function IngredientItem({
   onPress,
   onLongPress,
 }: Props) {
+  console.log('🥬 render IngredientItem:', item.name);
+if (typeof item.name !== 'string') {
+  console.warn('⚠️ item.name bukan string:', item.name);
+}
+
   return (
     <TouchableOpacity
       onPress={onPress}
-     onLongPress={() => {
-    onLongPress();
-  }}
+      onLongPress={() => {
+        onLongPress();
+      }}
       delayLongPress={200} // ✅ lebih cepat masuk selection mode
       activeOpacity={0.9}
       className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-neutral-900"
@@ -43,12 +48,14 @@ function IngredientItem({
           </Text>
 
           <Text className="text-sm text-gray-500 mt-0.5">
-            {item.quantity} {item.unit} • Rp{item.totalPrice.toLocaleString()}
-          </Text>
+  {`${item.quantity} ${item.unit} • Rp${item.totalPrice.toLocaleString()}`}
+</Text>
 
-          <Text className="text-xs text-gray-400 mt-0.5 italic">
-            Rp{item.pricePerUnit.toLocaleString()} / {item.unit}
-          </Text>
+
+         <Text className="text-xs text-gray-400 mt-0.5 italic">
+  {`Rp${item.pricePerUnit.toLocaleString()} / ${item.unit}`}
+</Text>
+
         </View>
       </View>
     </TouchableOpacity>

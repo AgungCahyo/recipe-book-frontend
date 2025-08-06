@@ -28,19 +28,19 @@ export default function FABAdd({ actions }: { actions: ActionButton[] }) {
   };
 
   const toggleMenu = () => {
-  const toValue = open ? 0 : 1;
+    const toValue = open ? 0 : 1;
 
-  // 💡 Cegah animasi dipanggil dengan value yang sama
-  animation.stopAnimation((currentValue) => {
-    if (currentValue === toValue) return; // Jangan animasi ulang
-    Animated.spring(animation, {
-      toValue,
-      friction: 10,
-      useNativeDriver: true,
-    }).start();
-    setOpen(prev => !prev)
-  });
-};
+    // 💡 Cegah animasi dipanggil dengan value yang sama
+    animation.stopAnimation((currentValue) => {
+      if (currentValue === toValue) return; // Jangan animasi ulang
+      Animated.spring(animation, {
+        toValue,
+        friction: 10,
+        useNativeDriver: true,
+      }).start();
+      setOpen(prev => !prev)
+    });
+  };
 
 
   // ✅ Reset FAB saat screen kembali aktif

@@ -174,7 +174,7 @@ export function useRecipeForm(id?: string) {
 
     clearDraft();
     showAlert(editing ? 'Resep diperbarui.' : 'Resep berhasil ditambahkan.', 'success');
-    router.push(`/recipes?refresh=${Date.now()}`);
+    router.replace(`recipes/${id}`);
   };
 
   const saveImagePermanently = async (uri: string): Promise<string> => {
@@ -190,7 +190,6 @@ export function useRecipeForm(id?: string) {
 
       return newPath;
     } catch (err) {
-      console.error('❌ Gagal simpan gambar permanen:', err);
       showAlert('Gagal menyimpan gambar.', 'error');
       throw err;
     }

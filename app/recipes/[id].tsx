@@ -12,6 +12,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRecipes } from 'context/RecipesContext';
 import Slider from '@react-native-community/slider';
+import MultiSlider from '@ptomasroos/react-native-multi-slider';
+import { Ionicons } from '@expo/vector-icons';
 
 
 const screenWidth = Dimensions.get('window').width;
@@ -140,20 +142,42 @@ export default function RecipeDetailPage() {
                   HPP: Rp {hpp.toLocaleString('id-ID')}
                 </Text>
               </View>
-
-              <Slider
-                value={margin}
-                minimumValue={0}
-                maximumValue={300}
+              <MultiSlider
+                values={[margin]}
+                min={0}
+                max={300}
                 step={5}
-                onValueChange={setMargin}
-                minimumTrackTintColor="#3B82F6"
-                maximumTrackTintColor="#CBD5E1"
+                selectedStyle={{
+                  backgroundColor: '#3B82F6',
+                  height: 8,
+                  borderRadius: 999,
+                }}
+                unselectedStyle={{
+                  backgroundColor: '#E5E7EB',
+                  height: 8,
+                  borderRadius: 999,
+                }}
+                trackStyle={{
+                  height: 8,
+                  borderRadius: 999,
+                }}
+                onValuesChange={(val) => setMargin(val[0])}
+                customMarker={() => (
+                  <View className="items-center justify-center w-10 h-10 bg-white border-2 border-blue-500 rounded-full shadow-sm">
+                    <Ionicons name="cash-outline" size={20} color="#3B82F6" />
+                  </View>
+                )}
+                containerStyle={{
+                  paddingHorizontal: 0,
+                  marginHorizontal: 5, // tarik keluar dikit biar mentok ke sisi screen
+                }}
+                sliderLength={screenWidth - 45}
               />
 
-              <Text className="text-xl font-bold text-black dark:text-white mt-4">
+              <Text className="text-2xl font-extrabold text-center text-blue-600 dark:text-blue-400 mt-6">
                 Harga Jual: Rp {(hpp + (hpp * margin) / 100).toLocaleString('id-ID')}
               </Text>
+
             </View>
 
 

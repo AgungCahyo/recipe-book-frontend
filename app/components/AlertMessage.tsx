@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Animated, View, StyleSheet } from 'react-native'
 import { useAlert } from 'context/AlertContext'
 import AlertBox from './AlertBox'
-import { playAlertSound } from '../../utils/soundEffect' // import sound player
+import { playAlertSound } from '../../utils/soundEffect'
 
 export default function AlertMessage() {
   const { alert, hideAlert } = useAlert()
@@ -11,7 +11,6 @@ export default function AlertMessage() {
 
   useEffect(() => {
     if (alert?.visible) {
-      // 👇 Play sound saat alert muncul
       playAlertSound(alert.type)
 
       Animated.parallel([
@@ -43,17 +42,13 @@ export default function AlertMessage() {
   }, [alert?.visible])
 
   if (!alert?.message || !alert.visible) return null
+  const animatedStyle = {
+    transform: [{ translateY }],
+    opacity,
+  };
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          transform: [{ translateY }],
-          opacity,
-        },
-      ]}
-    >
+    <Animated.View style={[styles.container, animatedStyle]}>
       <AlertBox
         message={alert.message}
         type={alert.type}

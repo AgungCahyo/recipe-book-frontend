@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 import CustomModal from '../components/CustomModal';
 import { useIngredients } from 'context/IngredientsContext';
-import CustomDropdown from '../components/DropdownCustom';
+import UnitsDropdown from '../components/DropdownSelect';
 
 export default function IngredientForm() {
   const {
@@ -107,7 +107,7 @@ export default function IngredientForm() {
 
       {/* Satuan */}
       <Text className="text-gray-600 dark:text-gray-300 mb-1 text-sm">Satuan</Text>
-      <CustomDropdown
+      <UnitsDropdown
         value={unit}
         options={satuanList}
         onSelect={(val) => setUnit(val)}

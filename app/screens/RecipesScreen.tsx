@@ -2,7 +2,6 @@ import React, { useCallback, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -14,16 +13,21 @@ import SearchBar from '../components/SearchBar';
 import FABAdd from '../components/FABAdd';
 import { useColorScheme } from 'react-native';
 import RefreshableFlatList from 'app/components/RefreshFlatList';
+import { recipeCategories } from 'data/categories';
+import FilteredCategory from 'app/components/FilteredCategory';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function Recipes() {
   const { recipes, reloadRecipes } = useRecipes();
   const router = useRouter();
   const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [isReady, setIsReady] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const theme = useColorScheme();
   const isDark = theme === 'dark';
-
   const fabRef = useRef<{ reset: () => void }>(null);
+
   useFocusEffect(
     useCallback(() => {
       const load = async () => {
@@ -33,8 +37,6 @@ export default function Recipes() {
       load();
     }, [])
   );
-
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -47,29 +49,38 @@ export default function Recipes() {
     }
   };
 
-
   const filtered = useMemo(() => {
     const keyword = search.toLowerCase();
+    
     return recipes
-      .filter((r) => r && r.id && r.title)
-      .filter((r) => r.title.toLowerCase().includes(keyword));
-  }, [search, recipes]);
+    .filter((r) => r && r.id && r.title)
+    .filter((r) => r.title.toLowerCase().includes(keyword))
+      .filter((r) =>
+        selectedCategory ? r.category?.toLowerCase() === selectedCategory.toLowerCase() : true
+      );
+  }, [search, selectedCategory, recipes]);
 
+  console.log('recipes rendered');
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-black">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={80}
-
       >
-        <View className=" px-4 pt-4">
+        <View className="px-4 pt-4">
           <SearchBar
             placeholder="Cari resep..."
             title="Daftar Resep"
             value={search}
             onChangeText={setSearch}
           />
-
+          <View className='flex-row justify-end items-center mt-4  mb-2'>
+            <FilteredCategory
+              selected={selectedCategory}
+              onSelect={(cat) => setSelectedCategory(cat)}
+            />
+          </View>
+          {/* List Resep */}
           {filtered.length > 0 ? (
             <RefreshableFlatList
               data={filtered}
@@ -90,17 +101,19 @@ export default function Recipes() {
               )}
             />
           ) : (
-            <Text
-              className={`text-center italic mt-10 text-base ${isDark ? 'text-gray-500' : 'text-gray-400'
-                }`}
-            >
-              Tidak ada resep ditemukan.
-            </Text>
+            // <Text
+            //   className={`text-center italic mt-10 text-base ${isDark ? 'text-gray-500' : 'text-gray-400'
+            //     }`}
+            // >
+            //   Tidak ada hasil.
+            // </Text>
+            <Ionicons name='search-outline' size={50} color={isDark ? '#9CA3AF' : '#6B7280'} style={{ alignSelf: 'center', marginTop: 50 }} />
           )}
         </View>
-
       </KeyboardAvoidingView>
-      <View className="absolute bottom-6 right-6">
+
+      {/* FAB Button */}
+      {/* <View className="absolute bottom-6 right-6">
         <FABAdd
           actions={[
             {
@@ -109,7 +122,7 @@ export default function Recipes() {
             },
             {
               icon: 'leaf-outline',
-              onPress: () => router.push('/ingredients/new'),
+              onPress: () => console.log("clicked")
             },
             {
               icon: 'calculator-outline',
@@ -117,7 +130,7 @@ export default function Recipes() {
             },
           ]}
         />
-      </View>
+      </View> */}
     </SafeAreaView>
   );
 }

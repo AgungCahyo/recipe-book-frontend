@@ -127,16 +127,14 @@ export default function EditIngredientPage() {
             <TouchableOpacity
               key={item}
               onPress={() => setUnit(item)}
-              className={`px-4 py-2 rounded-full border ${
-                unit === item
+              className={`px-4 py-2 rounded-full border ${unit === item
                   ? 'bg-blue-500 border-blue-500'
                   : 'bg-gray-100 dark:bg-neutral-800 border-gray-300 dark:border-gray-600'
-              }`}
+                }`}
             >
               <Text
-                className={`text-sm font-medium ${
-                  unit === item ? 'text-white' : 'text-gray-800 dark:text-gray-200'
-                }`}
+                className={`text-sm font-medium ${unit === item ? 'text-white' : 'text-gray-800 dark:text-gray-200'
+                  }`}
               >
                 {item}
               </Text>

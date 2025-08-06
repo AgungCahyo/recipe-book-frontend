@@ -18,7 +18,7 @@ import SearchBar from 'app/components/SearchBar';
 import { useAlert } from 'context/AlertContext';
 import FABAdd from 'app/components/FABAdd';
 import RefreshableFlatList from 'app/components/RefreshFlatList';
-
+import { Ionicons } from '@expo/vector-icons';
 export default function IngredientsSetup() {
   const {
     ingredients,
@@ -79,18 +79,18 @@ export default function IngredientsSetup() {
     [selectedIds, isSelectionMode]
   );
 
-   const [isRefreshing, setIsRefreshing] = useState(false);
-  
-    const handleRefresh = async () => {
-      setIsRefreshing(true);
-      try {
-        await reloadIngredients();
-      } catch (error) {
-        console.error('Gagal refresh:', error);
-      } finally {
-        setIsRefreshing(false);
-      }
-    };
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await reloadIngredients();
+    } catch (error) {
+      console.error('Gagal refresh:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const handleImportCSV = async () => {
     const data = await cvsImporter();
@@ -118,6 +118,9 @@ export default function IngredientsSetup() {
       showAlert('Tidak ada bahan baru yang diimpor', 'error');
     }
   };
+  console.log('ingredients rendered');
+  console.log(Ionicons.glyphMap['create-outline']); // kalau undefined → error!
+  console.log('ingredients:', ingredients);
 
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-black">
@@ -140,7 +143,7 @@ export default function IngredientsSetup() {
             renderItem={renderItem}
             extraData={{ selectedIds, isSelectionMode }}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 12, paddingTop: 12, borderRadius:10, borderBlockColor:'#000' }}
+            contentContainerStyle={{ paddingBottom: 12, paddingTop: 12, borderRadius: 10, borderBlockColor: '#000' }}
             initialNumToRender={10}
             maxToRenderPerBatch={10}
             windowSize={21}
@@ -148,11 +151,8 @@ export default function IngredientsSetup() {
             isRefreshing={isRefreshing}
             onRefresh={handleRefresh}
           />
-
           <IngredientForm />
         </View>
-
-        {/* FAB Add */}
         <View className="absolute bottom-6 right-6">
           <FABAdd
             actions={[
@@ -161,13 +161,12 @@ export default function IngredientsSetup() {
                 onPress: () => setIsFormModalVisible(true),
               },
               {
-                icon: 'cloud-download-outline',
+                icon: 'cloud-upload-outline',
                 onPress: handleImportCSV,
               },
             ]}
           />
         </View>
-
         {/* Selection Mode Action Bar */}
         {isSelectionMode && (
           <View className="absolute bottom-6 left-6 right-6 flex-row gap-3">
@@ -185,6 +184,7 @@ export default function IngredientsSetup() {
                   : 'Pilih Semua'}
               </Text>
             </TouchableOpacity>
+
 
             <TouchableOpacity
               onPress={deleteSelected}
