@@ -35,13 +35,6 @@ coverage/
 .expo-cache/
 .expo/*
 
-# 📷 Assets cache
-*.webp
-*.png
-*.jpg
-*.jpeg
-*.gif
-
 # 📲 iOS / Android build
 ios/
 android/
