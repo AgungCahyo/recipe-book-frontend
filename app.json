@@ -1,28 +1,12 @@
 {
   "expo": {
-    "name": "my-expo-app",
+    "name": "Recipe Book",
     "slug": "my-expo-app",
     "scheme": "my-expo-app",
     "version": "1.0.0",
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "experiments": {
-      "tsconfigPaths": true
-    },
-    "plugins": [
-      "expo-router",
-      [
-        "react-native-fbsdk-next",
-        {
-          "appID": " 1303906224588745",
-          "displayName": "Recipes-app"
-        }
-      ]
-    ],
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -31,21 +15,31 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "plugins": [
+      "expo-router",
+      [
+        "react-native-fbsdk-next",
+        {
+          "appID": "1303906224588745",
+          "displayName": "Recipes-app"
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": true
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "android": {
-        "permissions": [
-          "READ_EXTERNAL_STORAGE",
-          "WRITE_EXTERNAL_STORAGE"
-        ]
-      },
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
       "package": "com.cahyo507.recipebook"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "experiments": {
+      "tsconfigPaths": true
     },
     "extra": {
       "router": {},

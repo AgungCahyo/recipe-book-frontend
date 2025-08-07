@@ -1,12 +1,12 @@
 
 
-import React, { useCallback, useState, useMemo, useRef } from 'react';
+import React, { useCallback, useState, useMemo, useRef, } from 'react';
 import {
   View,
   Text,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView, TouchableOpacity
+  SafeAreaView,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useRecipes } from 'context/RecipesContext';
@@ -18,8 +18,16 @@ import RefreshableFlatList from 'app/components/RefreshFlatList';
 import { recipeCategories } from 'data/categories';
 import FilteredCategory from 'app/components/FilteredCategory';
 import { Ionicons } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 
-export default function Recipes() {
+type TabProps = {
+  goToHome: () => void;
+  goToRecipes: () => void;
+  goToIngredients: () => void;
+  isFocused: boolean;
+};
+
+export default function Recipes({ goToHome, goToIngredients, isFocused }: TabProps) {
   const { recipes, reloadRecipes } = useRecipes();
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -29,6 +37,7 @@ export default function Recipes() {
   const theme = useColorScheme();
   const isDark = theme === 'dark';
   const fabRef = useRef<{ reset: () => void }>(null);
+
 
   useFocusEffect(
     useCallback(() => {
@@ -61,7 +70,7 @@ export default function Recipes() {
         selectedCategory ? r.category?.toLowerCase() === selectedCategory.toLowerCase() : true
       );
   }, [search, selectedCategory, recipes]);
-
+console.log('render recipes page');
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-black">
       <KeyboardAvoidingView
@@ -114,29 +123,19 @@ export default function Recipes() {
       </KeyboardAvoidingView>
 
       {/* FAB Button */}
-        <TouchableOpacity onPress={() => router.push('/Recipes/recipeForm')}>
-  <Text>Test Push</Text>
-</TouchableOpacity>
       <View className="absolute bottom-6 right-6">
         <FABAdd
+          isFocused={isFocused}
           actions={[
             {
               icon: 'book-outline',
               onPress: () => {
                 console.log('navigating...');
-                router.push('/screens/IngredientsScreen');
+                router.push('/recipes/recipeForm');
               }
             },
-            {
-              icon: 'leaf-outline',
-              onPress: () => console.log("clicked")
-            },
-            {
-              icon: 'calculator-outline',
-              onPress: () => console.log('Hitung HPP'),
-            },
           ]}
-          
+
         />
       </View>
     </SafeAreaView>

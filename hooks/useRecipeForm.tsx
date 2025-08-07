@@ -56,6 +56,7 @@ export function useRecipeForm(id?: string) {
   const [steps, setSteps] = useState<string[]>(['']);
   const [ingredientsList, setIngredientsList] = useState<any[]>([]);
   const [category, setCategory] = useState('');
+const [editIngredientId, setEditIngredientId] = useState<string | null>(null);
 
   const [ingredientName, setIngredientName] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -98,29 +99,48 @@ export function useRecipeForm(id?: string) {
   const removeStep = (index: number) => setSteps((prev) => prev.filter((_, i) => i !== index));
 
   const addIngredient = () => {
-    if (!ingredientName || !quantity || !unit) {
-      showAlert('Isi nama, jumlah, dan satuan terlebih dahulu.', 'warning');
-      return;
-    }
+  if (!ingredientName || !quantity || !unit) {
+    showAlert('Isi nama, jumlah, dan satuan terlebih dahulu.', 'warning');
+    return;
+  }
 
+  const existing = ingredients.find((i) => i.name === ingredientName);
+  if (!existing) {
+    showAlert('Bahan tidak ditemukan. Tambahkan bahan terlebih dahulu.', 'error');
+    return;
+  }
+
+  const qty = parseFloat(quantity);
+  if (isNaN(qty) || qty <= 0) {
+    showAlert('Jumlah harus berupa angka positif.', 'warning');
+    return;
+  }
+
+  const cost = parseFloat((existing.pricePerUnit * qty).toFixed(2));
+
+  // Kalau sedang edit, ubah item yang sedang diedit
+  if (editIngredientId) {
+    setIngredientsList((prev) =>
+      prev.map((item) =>
+        item.id === editIngredientId
+          ? {
+              ...item,
+              name: existing.name,
+              quantity: qty,
+              unit,
+              cost,
+            }
+          : item
+      )
+    );
+    showAlert('Bahan berhasil diperbarui.', 'success');
+    setEditIngredientId(null);
+  } else {
+    // Cek duplikat hanya saat tambah baru
     if (ingredientsList.find((i) => i.name === ingredientName)) {
       showAlert('Bahan sudah ditambahkan.', 'error');
       return;
     }
-
-    const existing = ingredients.find((i) => i.name === ingredientName);
-    if (!existing) {
-      showAlert('Bahan tidak ditemukan. Tambahkan bahan terlebih dahulu.', 'error');
-      return;
-    }
-
-    const qty = parseFloat(quantity);
-    if (isNaN(qty) || qty <= 0) {
-      showAlert('Jumlah harus berupa angka positif.', 'warning');
-      return;
-    }
-
-    const cost = parseFloat((existing.pricePerUnit * qty).toFixed(2));
 
     const newIngredient = {
       id: uuid.v4() as string,
@@ -131,10 +151,15 @@ export function useRecipeForm(id?: string) {
     };
 
     setIngredientsList((prev) => [...prev, newIngredient]);
-    setIngredientName('');
-    setQuantity('');
-    setUnit('');
-  };
+    showAlert('Bahan berhasil ditambahkan.', 'success');
+  }
+
+  // Reset form
+  setIngredientName('');
+  setQuantity('');
+  setUnit('');
+};
+
 
   const removeIngredient = (id: string) => {
     setIngredientsList((prev) => prev.filter((i) => i.id !== id));
@@ -144,38 +169,41 @@ export function useRecipeForm(id?: string) {
     return ingredientsList.reduce((total, item) => total + (item.cost || 0), 0);
   };
 
-  const handleSave = async () => {
-    const cleanedSteps = steps.filter((s) => s.trim() !== '');
+ const handleSave = async () => {
+  const cleanedSteps = steps.filter((s) => s.trim() !== '');
 
-    if (!title.trim()) {
-      showAlert('Judul resep tidak boleh kosong.', 'error');
-      return;
-    }
+  if (!title.trim()) {
+    showAlert('Judul resep tidak boleh kosong.', 'error');
+    return;
+  }
 
-    if (ingredientsList.length === 0) {
-      showAlert('Tambahkan minimal satu bahan.', 'error');
-      return;
-    }
+  if (ingredientsList.length === 0) {
+    showAlert('Tambahkan minimal satu bahan.', 'error');
+    return;
+  }
 
-    const data = {
-      title: title.trim(),
-      description: cleanedSteps.length > 0 ? cleanedSteps.join('\n') : '',
-      ingredients: ingredientsList,
-      imageUris: imageUris.map((i) => i.uri),
-      category: category.trim(),
-      hpp: calculateTotalHPP(),
-    };
-
-    if (editing && existingRecipe) {
-      await editRecipe(existingRecipe.id, data);
-    } else {
-      await addRecipe(data);
-    }
-
-    clearDraft();
-    showAlert(editing ? 'Resep diperbarui.' : 'Resep berhasil ditambahkan.', 'success');
-    router.replace(`recipes/${id}`);
+  const data = {
+    title: title.trim(),
+    description: cleanedSteps.length > 0 ? cleanedSteps.join('\n') : '',
+    ingredients: ingredientsList,
+    imageUris: imageUris.map((i) => i.uri),
+    category: category.trim(),
+    hpp: calculateTotalHPP(),
   };
+
+  if (editing && existingRecipe) {
+    await editRecipe(existingRecipe.id, data);
+    clearDraft();
+    showAlert('Resep diperbarui.', 'success');
+    router.back();
+  } else {
+    const newId = await addRecipe(data); // ⬅️ panggil addRecipe DAN return ID
+    clearDraft();
+    showAlert('Resep berhasil ditambahkan.', 'success');
+    router.replace(`recipes/${newId}`);
+  }
+};
+
 
   const saveImagePermanently = async (uri: string): Promise<string> => {
     try {
@@ -266,5 +294,6 @@ export function useRecipeForm(id?: string) {
     editing,
     pickImage,
     isUploading,
+    setIngredientsList
   };
 }

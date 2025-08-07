@@ -1,11 +1,14 @@
 // app/index.tsx
-import { View } from 'react-native';
 import CustomTabs from './components/CustomTab';
 
-export default function Index() {
-  return (
-    <View style={{ flex: 1 }}>
-      <CustomTabs />
-    </View>
-  );
+export default function IndexPage() {
+  return <CustomTabs />;
 }
+
+export const unstable_settings = {
+  initialRouteName: 'index',
+};
+
+export const options = {
+  headerShown: false,
+};

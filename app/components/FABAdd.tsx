@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
   TouchableOpacity,
   View,
@@ -15,7 +15,14 @@ type ActionButton = {
   color?: string;
 };
 
-export default function FABAdd({ actions }: { actions: ActionButton[] }) {
+export default function FABAdd({
+  actions,
+  isFocused = true, // default biar gak error kalau nggak dikirim
+}: {
+  actions: ActionButton[];
+  isFocused?: boolean;
+}) {
+
   const [open, setOpen] = useState(false);
   const animation = useRef(new Animated.Value(0)).current;
 
@@ -27,17 +34,18 @@ export default function FABAdd({ actions }: { actions: ActionButton[] }) {
     }).start();
   };
 
-const toggleMenu = () => {
-  const toValue = open ? 0 : 1;
-
-  animation.stopAnimation((currentValue) => {
-    if (currentValue === toValue) return;
+  const toggleMenu = () => {
+    const toValue = open ? 0 : 1;
     animateTo(toValue);
-    setOpen(prev => !prev);
-  });
-};
+    setOpen(!open);
+  };
 
-
+  useEffect(() => {
+    if (!isFocused) {
+      animation.setValue(0);
+      setOpen(false);
+    }
+  }, [isFocused]);
 
   // ✅ Reset FAB saat screen kembali aktif
   useFocusEffect(

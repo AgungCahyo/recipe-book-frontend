@@ -1,25 +1,14 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, useWindowDimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { TabView } from 'react-native-tab-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import HomeScreen from '../screens/HomeScreen';
-import RecipesScreen from '../screens/RecipesScreen';
-import IngredientsScreen from '../screens/IngredientsScreen';
+import HomePage from 'app/(tabs)/home';
+import RecipesScreen from '../(tabs)/recipes';
+import IngredientsScreen from '../(tabs)/ingredients';
+import { BackHandler } from 'react-native';
 
-const renderScene = ({ route }: { route: any }) => {
-  switch (route.key) {
-    case 'home':
-      return <HomeScreen />;
-    case 'recipes':
-      return <RecipesScreen />;
-    case 'ingredients':
-      return <IngredientsScreen />;
-    default:
-      return null;
-  }
-};
 
 export default function CustomTabs() {
   const insets = useSafeAreaInsets();
@@ -32,42 +21,83 @@ export default function CustomTabs() {
     { key: 'ingredients', title: 'Bahan', icon: 'leaf-outline' },
   ]);
 
-  return (
-    <View className="flex-1">
-      <TabView
-        navigationState={{ index, routes }}
-        renderScene={renderScene}
-        onIndexChange={setIndex}
-        initialLayout={{ width: layout.width }}
-        renderTabBar={() => null} // 👈 Supaya custom tab bar kamu yang dipakai
-        lazy
-      />
+  const renderScene = ({ route }: { route: any }) => {
+  const sharedProps = {
+    goToHome: () => setIndex(0),
+    goToRecipes: () => setIndex(1),
+    goToIngredients: () => setIndex(2),
+    isFocused: routes[index].key === route.key, // langsung boolean
+  };
 
-      {/* Custom Tab Bar */}
-      <View
-        style={{
-          paddingBottom: insets.bottom,
-          height: 60 + insets.bottom,
-        }}
-        className="flex-row justify-around items-center border-t border-gray-200 dark:border-zinc-700 bg-white dark:bg-black"
-      >
-        {routes.map((route, i) => (
-          <TouchableOpacity
-            key={route.key}
-            onPress={() => setIndex(i)}
-            className="flex-1 items-center justify-center"
-          >
-            <Ionicons
-              name={route.icon as any}
-              size={22}
-              color={index === i ? '#2563EB' : '#9CA3AF'}
-            />
-            <Text className={`text-xs mt-1 ${index === i ? 'text-blue-600' : 'text-gray-400'}`}>
-              {route.title}
-            </Text>
-          </TouchableOpacity>
-        ))}
+  switch (route.key) {
+    case 'home':
+      return <HomePage {...sharedProps} />;
+    case 'recipes':
+      return <RecipesScreen {...sharedProps} />;
+    case 'ingredients':
+      return <IngredientsScreen {...sharedProps} />;
+    default:
+      return null;
+  }
+};
+
+
+  useEffect(() => {
+    const onBackPress = () => {
+      if (index > 0) {
+        setIndex(index - 1);
+        return true;
+      }
+      return false;
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [index]);
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={60} // bisa disesuaikan kalau ada header
+    >
+      <View className="flex-1">
+        <TabView
+          navigationState={{ index, routes }}
+          renderScene={renderScene}
+          onIndexChange={setIndex}
+          initialLayout={{ width: layout.width }}
+          renderTabBar={() => null}
+          lazy
+           lazyPreloadDistance={1} 
+        />
+
+        {/* Custom Tab Bar */}
+        <View
+          style={{
+            paddingBottom: insets.bottom,
+            height: 60 + insets.bottom,
+          }}
+          className="flex-row justify-around items-center border-t border-gray-200 dark:border-zinc-700 bg-white dark:bg-black"
+        >
+          {routes.map((route, i) => (
+            <TouchableOpacity
+              key={route.key}
+              onPress={() => setIndex(i)}
+              className="flex-1 items-center justify-center"
+            >
+              <Ionicons
+                name={route.icon as any}
+                size={22}
+                color={index === i ? '#2563EB' : '#9CA3AF'}
+              />
+              <Text className={`text-xs mt-1 ${index === i ? 'text-blue-600' : 'text-gray-400'}`}>
+                {route.title}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

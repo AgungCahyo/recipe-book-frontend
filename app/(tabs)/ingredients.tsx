@@ -5,8 +5,8 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  FlatList,
   SafeAreaView,
+  useColorScheme,
 } from 'react-native';
 import { useIngredients } from 'context/IngredientsContext';
 import IngredientForm from 'app/ingredients/IngredientForm';
@@ -18,10 +18,15 @@ import SearchBar from 'app/components/SearchBar';
 import { useAlert } from 'context/AlertContext';
 import FABAdd from 'app/components/FABAdd';
 import RefreshableFlatList from 'app/components/RefreshFlatList';
-import { Ionicons } from '@expo/vector-icons';
 
+type TabProps = {
+  goToHome: () => void;
+  goToRecipes: () => void;
+  goToIngredients: () => void;
+  isFocused: boolean;
+};
 
-export default function IngredientsScreen() {
+export default function IngredientsSetup({ isFocused }: TabProps) {
   const {
     ingredients,
     removeIngredient,
@@ -31,12 +36,12 @@ export default function IngredientsScreen() {
     removeManyIngredients,
     addManyIngredients,
     parseIngredientFromCSV,
-    reloadIngredients
+    reloadIngredients,
   } = useIngredients();
 
   const [search, setSearch] = useState('');
   const { showAlert } = useAlert();
-  const [isCSVImportVisible, setIsCSVImportVisible] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const {
     selectedIds,
@@ -48,10 +53,8 @@ export default function IngredientsScreen() {
     deselectAll,
   } = useSelection<Ingredient>();
 
-  const deleteSelected = () => {
-    removeManyIngredients(selectedIds);
-    cancelSelection();
-  };
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const filteredIngredients = useMemo(() => {
     return ingredients.filter((item) =>
@@ -68,9 +71,7 @@ export default function IngredientsScreen() {
           isSelected={isSelected}
           isSelectionMode={isSelectionMode}
           onPress={() =>
-            isSelectionMode
-              ? toggleSelect(item.id)
-              : editIngredient(item.id)
+            isSelectionMode ? toggleSelect(item.id) : editIngredient(item.id)
           }
           onLongPress={() => {
             if (!isSelectionMode) enableSelection(item.id);
@@ -80,8 +81,6 @@ export default function IngredientsScreen() {
     },
     [selectedIds, isSelectionMode]
   );
-
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -107,8 +106,7 @@ export default function IngredientsScreen() {
         if (!item) return false;
         const isDuplicate = ingredients.some(
           (ing) =>
-            ing.name.toLowerCase().trim() ===
-            item.name.toLowerCase().trim()
+            ing.name.toLowerCase().trim() === item.name.toLowerCase().trim()
         );
         return !isDuplicate;
       });
@@ -121,28 +119,38 @@ export default function IngredientsScreen() {
     }
   };
 
+  const deleteSelected = () => {
+    removeManyIngredients(selectedIds);
+    cancelSelection();
+  };
+
+  console.log('render ingredients page');
+
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-black">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={80}
-        style={{ flex: 1 }}
-      >
-        <View className="flex-1 px-4 pt-4">
-          <SearchBar
-            placeholder="Cari bahan..."
-            title="Daftar Bahan"
-            value={search}
-            onChangeText={setSearch}
-          />
+      <View className="flex-1 px-4 pt-4">
+        <SearchBar
+          placeholder="Cari bahan..."
+          title="Daftar Bahan"
+          value={search}
+          onChangeText={setSearch}
+        />
 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={80}
+          style={{ flex: 1 }}
+        >
           <RefreshableFlatList
             data={filteredIngredients}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             extraData={{ selectedIds, isSelectionMode }}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 12, paddingTop: 12, borderRadius: 10, borderBlockColor: '#000' }}
+            contentContainerStyle={{
+              paddingBottom: isSelectionMode ? 140 : 100,
+              paddingTop: 12,
+            }}
             initialNumToRender={10}
             maxToRenderPerBatch={10}
             windowSize={21}
@@ -150,57 +158,55 @@ export default function IngredientsScreen() {
             isRefreshing={isRefreshing}
             onRefresh={handleRefresh}
           />
-          <IngredientForm />
+        </KeyboardAvoidingView>
+
+        <IngredientForm />
+      </View>
+
+      {/* FAB */}
+      <View className="absolute bottom-6 right-6">
+        <FABAdd
+          isFocused={isFocused}
+          actions={[
+            { icon: 'create-outline', onPress: () => setIsFormModalVisible(true) },
+            { icon: 'cloud-upload-outline', onPress: handleImportCSV },
+          ]}
+        />
+      </View>
+
+      {/* Selection Mode Actions */}
+      {isSelectionMode && (
+        <View className="absolute bottom-6 left-6 right-6 flex-row gap-3">
+          <TouchableOpacity
+            onPress={() =>
+              selectedIds.length === filteredIngredients.length
+                ? deselectAll()
+                : selectAll(filteredIngredients)
+            }
+            className="flex-1 bg-blue-100 py-3 rounded-xl"
+          >
+            <Text className="text-blue-700 text-center font-medium">
+              {selectedIds.length === filteredIngredients.length
+                ? 'Batal Pilih Semua'
+                : 'Pilih Semua'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={deleteSelected}
+            className="flex-1 bg-red-500 py-3 rounded-xl"
+          >
+            <Text className="text-white text-center font-medium">Hapus</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={cancelSelection}
+            className="flex-1 bg-gray-200 py-3 rounded-xl"
+          >
+            <Text className="text-gray-800 text-center font-medium">Batal</Text>
+          </TouchableOpacity>
         </View>
-        <View className="absolute bottom-6 right-6">
-          <FABAdd
-            actions={[
-              {
-                icon: 'create-outline',
-                onPress: () => setIsFormModalVisible(true),
-              },
-              {
-                icon: 'cloud-upload-outline',
-                onPress: handleImportCSV,
-              },
-            ]}
-          />
-        </View>
-        {/* Selection Mode Action Bar */}
-        {isSelectionMode && (
-          <View className="absolute bottom-6 left-6 right-6 flex-row gap-3">
-            <TouchableOpacity
-              onPress={() =>
-                selectedIds.length === filteredIngredients.length
-                  ? deselectAll()
-                  : selectAll(filteredIngredients)
-              }
-              className="flex-1 bg-blue-100 py-3 rounded-xl"
-            >
-              <Text className="text-blue-700 text-center font-medium">
-                {selectedIds.length === filteredIngredients.length
-                  ? 'Batal Pilih Semua'
-                  : 'Pilih Semua'}
-              </Text>
-            </TouchableOpacity>
-
-
-            <TouchableOpacity
-              onPress={deleteSelected}
-              className="flex-1 bg-red-500 py-3 rounded-xl"
-            >
-              <Text className="text-white text-center font-medium">Hapus</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={cancelSelection}
-              className="flex-1 bg-gray-200 py-3 rounded-xl"
-            >
-              <Text className="text-gray-800 text-center font-medium">Batal</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </KeyboardAvoidingView>
+      )}
     </SafeAreaView>
   );
 }

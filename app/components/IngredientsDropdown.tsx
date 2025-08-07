@@ -48,7 +48,7 @@ export default function IngredientsDropdown({
     <>
       <TouchableOpacity
         onPress={() => setModalVisible(true)}
-        className="border border-gray-300 rounded-lg px-4 py-3 mb-4 bg-white dark:bg-gray-900"
+        className="border border-gray-300 rounded-lg px-4 py-3   dark:bg-gray-900"
       >
         <Text className="text-black dark:text-white">
           {selectedValue
