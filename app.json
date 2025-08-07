@@ -6,9 +6,9 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "icon": "assets/icon.png",
+    "icon": "./assets/images/icon.png",
     "splash": {
-      "image": "assets/splash.png",
+      "image": "./assets/images/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -36,7 +36,7 @@
       "package": "com.cahyo507.recipebook"
     },
     "web": {
-      "favicon": "assets/favicon.png"
+      "favicon": "./assets/images/favicon.png"
     },
     "experiments": {
       "tsconfigPaths": true
