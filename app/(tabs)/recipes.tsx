@@ -15,10 +15,7 @@ import SearchBar from '../components/SearchBar';
 import FABAdd from '../components/FABAdd';
 import { useColorScheme } from 'react-native';
 import RefreshableFlatList from 'app/components/RefreshFlatList';
-import { recipeCategories } from 'data/categories';
 import FilteredCategory from 'app/components/FilteredCategory';
-import { Ionicons } from '@expo/vector-icons';
-import { useIsFocused } from '@react-navigation/native';
 
 type TabProps = {
   goToHome: () => void;
@@ -36,7 +33,6 @@ export default function Recipes({ goToHome, goToIngredients, isFocused }: TabPro
   const [isRefreshing, setIsRefreshing] = useState(false);
   const theme = useColorScheme();
   const isDark = theme === 'dark';
-  const fabRef = useRef<{ reset: () => void }>(null);
 
 
   useFocusEffect(
@@ -72,72 +68,87 @@ export default function Recipes({ goToHome, goToIngredients, isFocused }: TabPro
   }, [search, selectedCategory, recipes]);
 console.log('render recipes page');
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-black">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={80}
-      >
-        <View className="px-4 pt-4">
-          <SearchBar
-            placeholder="Cari resep..."
-            title="Daftar Resep"
-            value={search}
-            onChangeText={setSearch}
-          />
-          <View className='flex-row justify-end items-center mt-4  mb-2'>
-            <FilteredCategory
-              selected={selectedCategory}
-              onSelect={(cat) => setSelectedCategory(cat)}
-            />
-          </View>
-          {/* List Resep */}
-          {filtered.length > 0 ? (
-            <RefreshableFlatList
-              data={filtered}
-              keyExtractor={(item, index) => item?.id || index.toString()}
-              numColumns={2}
-              columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 12 }}
-              contentContainerStyle={{ paddingBottom: 160, paddingTop: 12 }}
-              keyboardShouldPersistTaps="handled"
-              isRefreshing={isRefreshing}
-              onRefresh={handleRefresh}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <RecipeCard
-                  item={item}
-                  isDark={isDark}
-                  onPress={() => router.push(`/recipes/${item.id}`)}
-                />
-              )}
-            />
-          ) : (
-            <Text
-              className={`text-center italic mt-10 text-base ${isDark ? 'text-gray-500' : 'text-gray-400'
-                }`}
-            >
-              Tidak ada hasil.
+  <SafeAreaView className="flex-1 bg-[#fff] dark:bg-dark">
+  <KeyboardAvoidingView
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    keyboardVerticalOffset={80}
+    style={{ flex: 1 }}
+  >
+    <View className="flex-1 px-4 pt-4">
+      <View className='border-b mx-5 border-primary'>
+      
+            <Text className="text-3xl px-5 py-3 rounded-3xl font-semibold text-primary dark:text-accent text-center">
+             Dartar Resep
             </Text>
+             </View>
 
-          )}
-        </View>
-      </KeyboardAvoidingView>
-
-      {/* FAB Button */}
-      <View className="absolute bottom-6 right-6">
-        <FABAdd
-          isFocused={isFocused}
-          actions={[
-            {
-              icon: 'book-outline',
-              onPress: () => {
-                console.log('navigating...');
-                router.push('/recipes/recipeForm');
-              }
-            },
-          ]}
-
+      {/* Filter Kategori */}
+      <View className="flex-row justify-end items-center mt-4 mb-2">
+        <FilteredCategory
+          selected={selectedCategory}
+          onSelect={(cat) => setSelectedCategory(cat)}
         />
       </View>
-    </SafeAreaView>
+
+      {/* Daftar Resep */}
+      {filtered.length > 0 ? (
+        <RefreshableFlatList
+          data={filtered}
+          keyExtractor={(item, index) => item?.id || index.toString()}
+          numColumns={2}
+          columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 12 }}
+          contentContainerStyle={{
+            paddingBottom: 120, // Supaya gak ketimpa FAB + SearchBar
+            paddingTop: 12,
+          }}
+          keyboardShouldPersistTaps="handled"
+          isRefreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <RecipeCard
+              item={item}
+              isDark={isDark}
+              onPress={() => router.push(`/recipes/${item.id}`)}
+            />
+          )}
+        />
+      ) : (
+        <Text
+          className={`text-center italic mt-10 text-base ${
+            isDark ? 'text-muted' : 'text-primary'
+          }`}
+        >
+          Tidak ada hasil.
+        </Text>
+      )}
+    </View>
+  </KeyboardAvoidingView>
+
+  {/* FAB */}
+  <View className="absolute bottom-6 right-6">
+    <FABAdd
+      isFocused={isFocused}
+      actions={[
+        {
+          icon: 'book-outline',
+          onPress: () => router.push('/recipes/recipeForm'),
+        },
+      ]}
+    />
+  </View>
+
+  {/* SearchBar fix di bawah layar */}
+  <View className="pb-5">
+    <SearchBar
+      placeholder="Cari resep..."
+      title=""
+      value={search}
+      onChangeText={setSearch}
+    />
+  </View>
+</SafeAreaView>
+
+
   );
 }

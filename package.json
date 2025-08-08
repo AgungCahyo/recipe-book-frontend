@@ -59,7 +59,8 @@
     "react-native-vector-icons": "^10.3.0",
     "yup": "^1.7.0",
     "zustand": "^5.0.7",
-    "expo-system-ui": "~5.0.10"
+    "expo-system-ui": "~5.0.10",
+    "expo-splash-screen": "~0.30.10"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

@@ -13,7 +13,7 @@ type Props = {
   label?: string;
   placeholder?: string;
   value: string;
-  options: string[];
+  options:readonly string[];
   onSelect: (value: string) => void;
   className?: string;
 };

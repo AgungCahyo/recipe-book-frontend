@@ -11,11 +11,13 @@ import AlertMessage from '../app/components/AlertMessage';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import CustomTabs from './components/CustomTab';
 
-
 export default function RootLayout() {
   const theme = useColorScheme();
+  console.log(theme)
+ 
 
   return (
+    
     <GestureHandlerRootView>
       <AlertProvider>
         <DraftRecipeProvider>

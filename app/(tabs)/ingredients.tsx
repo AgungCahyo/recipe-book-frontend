@@ -127,15 +127,14 @@ export default function IngredientsSetup({ isFocused }: TabProps) {
   console.log('render ingredients page');
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-black">
+    <SafeAreaView className="flex-1 bg-[#fff] dark:bg-dark">
       <View className="flex-1 px-4 pt-4">
-        <SearchBar
-          placeholder="Cari bahan..."
-          title="Daftar Bahan"
-          value={search}
-          onChangeText={setSearch}
-        />
+        <View className='border-b mx-5 border-primary'>
 
+          <Text className="text-3xl px-5 py-3 rounded-3xl font-semibold text-primary dark:text-accent text-center">
+            Dartar Bahan
+          </Text>
+        </View>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={80}
@@ -150,6 +149,7 @@ export default function IngredientsSetup({ isFocused }: TabProps) {
             contentContainerStyle={{
               paddingBottom: isSelectionMode ? 140 : 100,
               paddingTop: 12,
+              flexGrow: 1, // biar fallback-nya tetap center kalau list kosong
             }}
             initialNumToRender={10}
             maxToRenderPerBatch={10}
@@ -157,7 +157,17 @@ export default function IngredientsSetup({ isFocused }: TabProps) {
             removeClippedSubviews
             isRefreshing={isRefreshing}
             onRefresh={handleRefresh}
+            ListEmptyComponent={
+              <View className="flex-1 items-center justify-center mt-10" >
+                <Text className="italic text-gray-500 text-center">
+                  {search
+                    ? 'Bahan tidak ditemukan.\nCoba kata kunci lain.'
+                    : 'Belum ada bahan.\nTambah bahan baru terlebih dahulu.'}
+                </Text>
+              </View>
+            }
           />
+
         </KeyboardAvoidingView>
 
         <IngredientForm />
@@ -173,6 +183,16 @@ export default function IngredientsSetup({ isFocused }: TabProps) {
           ]}
         />
       </View>
+      <View className='pb-5'>
+
+        <SearchBar
+          placeholder="Cari bahan..."
+          title="Daftar Bahan"
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
+
 
       {/* Selection Mode Actions */}
       {isSelectionMode && (

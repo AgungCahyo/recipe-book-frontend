@@ -141,7 +141,7 @@ export default function RecipeForm() {
   return (
     <>
       <KeyboardAwareScrollView
-        className="flex-1 bg-[#F9FAFB] dark:bg-black px-4 pt-8"
+        className="flex-1 bg-accent dark:bg-black px-4 pt-8"
         contentContainerStyle={{ paddingBottom: 160 }}
         keyboardShouldPersistTaps="handled"
         enableOnAndroid
@@ -149,7 +149,7 @@ export default function RecipeForm() {
       >
         <View className="flex-row items-center justify-between mb-6 px-4">
           <View className="w-10"><BackButton /></View>
-          <Text className="text-xl font-bold text-blue-600 dark:text-blue-400 text-center">
+          <Text className="text-3xl font-bold text-primary dark:text-blue-400 text-center">
             {editing ? 'Edit Resep' : 'Tambah Resep Baru'}
           </Text>
           <View className="w-10" />
@@ -209,7 +209,7 @@ export default function RecipeForm() {
 
         <View className="mb-2">
           <Text className="text-gray-700 dark:text-gray-200 font-semibold mb-2">Bahan-bahan</Text>
-          <Animated.View style={{ backgroundColor, borderRadius: 10, padding: 2 }}>
+          <Animated.View style={{ backgroundColor, borderRadius: 100, padding: 2 }}>
             <View className="rounded-xl overflow-hidden">
               <IngredientsDropdown
                 options={items}
@@ -248,7 +248,7 @@ export default function RecipeForm() {
 
         <TouchableOpacity
           onPress={handleAddIngredient}
-          className="bg-green-500 py-3 px-4 rounded-xl mb-6 flex-row justify-center items-center gap-2"
+          className="bg-primary py-3 px-4 rounded-xl mb-6 flex-row justify-center items-center gap-2"
         >
           <Ionicons name='add-circle-outline' size={24} color="white" />
           <Text className="text-center text-white font-semibold">
@@ -307,14 +307,14 @@ export default function RecipeForm() {
         </Text>
       </KeyboardAwareScrollView>
 
-      <View className="absolute bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-white dark:bg-black border-t border-gray-200 dark:border-neutral-800">
+      <View className="absolute bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-accent-dark dark:bg-black border-t border-gray-200 dark:border-neutral-800">
         <Text className="text-gray-700 dark:text-gray-200 font-semibold mb-2">
           Total HPP: Rp {calculateTotalHPP().toLocaleString('id-ID')}
         </Text>
 
         <TouchableOpacity
           onPress={handleSave}
-          className="bg-zinc-900 dark:bg-zinc-100 py-4 rounded-2xl shadow-md flex-row justify-center items-center gap-2 active:opacity-80"
+          className="bg-primary dark:bg-zinc-100 py-4 rounded-2xl shadow-md flex-row justify-center items-center gap-2 active:opacity-80"
         >
           <Ionicons
             name={editing ? 'save-outline' : 'add-circle-outline'}

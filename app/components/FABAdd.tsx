@@ -90,7 +90,7 @@ export default function FABAdd({
                 action.onPress();
               }}
             >
-              <Ionicons name={action.icon} size={24} color="#fff" />
+              <Ionicons name={action.icon} size={24} color="#F2E8DC" />
             </TouchableOpacity>
           </Animated.View>
         );
@@ -98,7 +98,7 @@ export default function FABAdd({
 
       {/* Main FAB */}
       <TouchableOpacity onPress={toggleMenu} style={[styles.button, styles.main]}>
-        <Ionicons name={open ? 'close' : 'add'} size={30} color="#fff" />
+        <Ionicons name={open ? 'close' : 'add'} size={30} color="#F2E8DC" />
       </TouchableOpacity>
     </View>
   );
@@ -107,7 +107,7 @@ export default function FABAdd({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 70,
+    bottom: 120,
     right: 30,
     alignItems: 'center',
   },
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   main: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#204c4b',
   },
   secondary: {
     backgroundColor: '#4B5563',

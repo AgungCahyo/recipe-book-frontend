@@ -8,4 +8,6 @@ export const recipeCategories = [
   'Dessert',
   'Lauk-Pauk',
   'Sayuran',
-];
+] as const;
+
+export type RecipeCategory = (typeof recipeCategories)[number];
