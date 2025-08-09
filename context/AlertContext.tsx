@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
-type AlertType = 'success' | 'error' | 'info' | 'warning';
+export type AlertType = 'success' | 'error' | 'info' | 'warning';
 
 type AlertData = {
   message: string

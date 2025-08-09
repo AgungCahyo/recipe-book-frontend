@@ -4,52 +4,44 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { useColorScheme } from 'nativewind';
 
-type TabItem = {
+type SidebarItem = {
   key: string;
   title: string;
   icon: keyof typeof Ionicons.glyphMap;
   route: string;
 };
 
-const items: TabItem[] = [
+const items: SidebarItem[] = [
   { key: 'home', title: 'Home', icon: 'home-outline', route: '/' },
   { key: 'recipes', title: 'Resep', icon: 'book-outline', route: '/recipePage' },
   { key: 'ingredients', title: 'Bahan', icon: 'leaf-outline', route: '/ingredientsPage' },
 ];
 
-type Props = {
+type SidebarProps = {
   children?: React.ReactNode;
 };
 
-export default function BottomTabBar({ children }: Props) {
+export default function Sidebar({ children }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
-
-  const showTabBar = ['/', '/recipePage', '/ingredientsPage'].includes(pathname);
-
+const showTabBar = ['/', '/recipePage', '/ingredientsPage'].includes(pathname);
   const handleNavigate = (route: string) => {
     if (pathname !== route) {
       router.push(route);
     }
   };
-
-  if (!showTabBar) {
-    return <View style={{ flex: 1 }}>{children}</View>;
-  }
+if (!showTabBar) {
+  // Kalau bukan di route itu, tab bar gak muncul, cuma render konten doang
+  return <View style={{ flex: 1 }}>{children}</View>;
+}
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Konten utama */}
-      <View style={{ flex: 1 }}>{children}</View>
-
-      {/* Bottom Tab Bar */}
+    <View style={{ flex: 1, flexDirection: 'row' }}>
+      {/* Sidebar */}
       <View
-        className={`flex-row border-t ${
-          isDark ? 'border-gray-700 bg-dark' : 'border-gray-300 bg-accent'
-        }`}
-        style={{ height: 60 }}
+        className={`bg-${isDark ? 'dark' : 'accent'} h-full w-56 p-4 border-r border-gray-300 dark:border-gray-700`}
       >
         {items.map(({ key, title, icon, route }) => {
           const active = pathname === route;
@@ -57,17 +49,19 @@ export default function BottomTabBar({ children }: Props) {
             <TouchableOpacity
               key={key}
               onPress={() => handleNavigate(route)}
-              className="flex-1 items-center justify-center"
+              className={`flex-row items-center p-3 mb-2 rounded-md ${
+                active ? 'bg-primary' : 'bg-transparent'
+              }`}
               activeOpacity={0.7}
             >
               <Ionicons
-                name={icon as any}
-                size={24}
-                className={active ? 'text-primary dark:text-primary-dark' : 'text-muted dark:text-muted-dark'}
+                name={icon}
+                size={22}
+                className={active ? 'text-accent' : isDark ? 'text-muted-dark' : 'text-muted'}
               />
               <Text
-                className={`text-xs mt-1 ${
-                  active ? 'text-primary dark:text-primary-dark' : 'text-muted dark:text-muted-dark'
+                className={`ml-3 text-lg ${
+                  active ? 'text-accent' : isDark ? 'text-muted-dark' : 'text-primary'
                 }`}
               >
                 {title}
@@ -76,6 +70,9 @@ export default function BottomTabBar({ children }: Props) {
           );
         })}
       </View>
+
+      {/* Konten utama di samping sidebar */}
+      <View style={{ flex: 1 }}>{children}</View>
     </View>
   );
 }

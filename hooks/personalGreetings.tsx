@@ -9,7 +9,7 @@ type AgeGroup = {
 
 const ageGroups: AgeGroup[] = [
   {
-    label: 'Anak-anak',
+    label: 'Pasukan Dot & Crayon',
     range: [0, 12],
     jokes: [
       '🧃 Jangan lupa minum susu biar tumbuh tinggi dan pintar!',
@@ -21,7 +21,7 @@ const ageGroups: AgeGroup[] = [
     ],
   },
   {
-    label: 'Remaja',
+    label: 'Kaum Patah Bracket',
     range: [13, 17],
     jokes: [
       '📱 Scroll TikTok terus, kapan belajarnya?',
@@ -33,7 +33,7 @@ const ageGroups: AgeGroup[] = [
     ],
   },
   {
-    label: 'Anak Muda',
+    label: 'Tim Pencari Jati & Wifi',
     range: [18, 24],
     jokes: [
       '☕ Lagi sibuk nyari jati diri atau kopi gratis?',
@@ -46,7 +46,7 @@ const ageGroups: AgeGroup[] = [
     ],
   },
   {
-    label: 'Dewasa Awal',
+    label: 'Manager of Quarter Life Crisis',
     range: [25, 34],
     jokes: [
       '🧾 Bayar cicilan dulu, baru healing!',
@@ -59,7 +59,7 @@ const ageGroups: AgeGroup[] = [
     ],
   },
   {
-    label: 'Dewasa Menengah',
+    label: 'Direktur Keluarga & Deadline',
     range: [35, 49],
     jokes: [
       '💼 Pekerjaan numpuk? Tenang, napas dulu.',
@@ -71,7 +71,7 @@ const ageGroups: AgeGroup[] = [
     ],
   },
   {
-    label: 'Usia Matang',
+    label: 'CEO of Cerita Zaman Dulu',
     range: [50, 100],
     jokes: [
       '☀️ Pagi-pagi jalan kaki, sehat terus ya!',
@@ -82,7 +82,17 @@ const ageGroups: AgeGroup[] = [
       '🍵 Nikmatin waktu luang, kamu pantas istirahat.',
     ],
   },
+  {
+    label: 'NPC Legendaris',
+    range: [101, 200],
+    jokes: [
+      '🏆 Kamu pasti udah lihat semua plot twist di hidup ini.',
+      '🕰️ Umur segini? Wajib dibikinin film dokumenter.',
+      '🧓 Dulu scrolling pakai batu ukir ya?',
+    ],
+  },
 ];
+
 
 
 const getTimeGreeting = () => {
@@ -103,40 +113,52 @@ export function usePersonalGreeting() {
   const [joke, setJoke] = useState('');
   const [timeGreeting, setTimeGreeting] = useState('');
 
-  useEffect(() => {
-    const loadData = async () => {
-      const raw = await AsyncStorage.getItem('userProfile');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const userName = parsed.name || '';
-        const userAge = parsed.age || null;
+useEffect(() => {
+  let interval: NodeJS.Timeout;
 
-        setName(userName);
-        setAge(userAge);
+  const loadData = async () => {
+    const raw = await AsyncStorage.getItem('userProfile');
+    if (!raw) return;
 
-        const { emoji, label } = getTimeGreeting();
-        setTimeGreeting(label);
+    const parsed = JSON.parse(raw);
+    const userName = parsed.name || '';
+    const userAge = parsed.age || null;
 
-        const fullGreeting = `${emoji} ${label}, ${userName} 👋`;
-        setGreetingMessage(fullGreeting);
+    setName(userName);
+    setAge(userAge);
 
-        const group = ageGroups.find(
-          (g) => userAge >= g.range[0] && userAge <= g.range[1]
-        );
+    const { emoji, label } = getTimeGreeting();
+    setTimeGreeting(label);
 
-        if (group) {
-          setAgeLabel(group.label);
-          const selected = group.jokes[Math.floor(Math.random() * group.jokes.length)];
-          setJoke(selected);
-        } else {
-          setAgeLabel('Umur tidak diketahui');
-          setJoke('👋 Halo, semangat ya hari ini!');
-        }
-      }
-    };
+    setGreetingMessage(`${emoji} ${label}, ${userName} 👋`);
 
-    loadData();
-  }, []);
+    const group = ageGroups.find(
+      (g) => userAge >= g.range[0] && userAge <= g.range[1]
+    );
+
+    if (group) {
+      setAgeLabel(group.label);
+
+      // ✅ Function untuk set joke baru
+      const updateJoke = () => {
+        const selected = group.jokes[Math.floor(Math.random() * group.jokes.length)];
+        setJoke(selected);
+      };
+
+      updateJoke(); // set pertama
+      interval = setInterval(updateJoke, 10000); // update tiap 10 detik
+    } else {
+      setAgeLabel('Umur tidak diketahui');
+      setJoke('👋 Halo, semangat ya hari ini!');
+    }
+  };
+
+  loadData();
+
+  // ✅ Cleanup saat unmount
+  return () => clearInterval(interval);
+}, []);
+
 
   return {
     name,

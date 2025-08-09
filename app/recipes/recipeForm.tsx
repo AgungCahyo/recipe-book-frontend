@@ -9,13 +9,12 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
-  BackHandler,
   useColorScheme,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
-import { useIngredients } from 'context/IngredientsContext';
+import { useIngredients } from 'context/ingredients/IngredientsProvider';
 import IngredientsDropdown from 'app/components/IngredientsDropdown';
 import DropdownSelect from 'app/components/DropdownSelect';
 import BackButton from 'app/components/BackButton';
@@ -23,8 +22,10 @@ import { recipeCategories } from '../../data/categories';
 import { useRecipeForm } from 'hooks/useRecipeForm';
 import { Animated } from 'react-native';
 import uuid from 'react-native-uuid';
+import useBackHandler from 'hooks/backHandler';
 
 export default function RecipeForm() {
+  // console.log('RecipeForm rendered');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
   const theme = useColorScheme();
@@ -101,10 +102,18 @@ export default function RecipeForm() {
       setIngredientsList((prev) =>
         prev.map((item) =>
           item.id === editIngredientId
-            ? { ...item, quantity: qty, unit, cost }
+            ? {
+              ...item,
+              name: existing.name, // ✅ tambahkan ini!
+              quantity: qty,
+              unit,
+              cost,
+            }
             : item
         )
       );
+
+
     } else {
       if (ingredientsList.find((i) => i.name === ingredientName)) return;
       const newIngredient = {
@@ -126,22 +135,22 @@ export default function RecipeForm() {
 
   useEffect(() => {
     const selected = ingredients.find((i) => i.name === ingredientName);
-    if (selected) setUnit(selected.unit);
+    if (selected) {
+      if (unit !== selected.unit) {
+        setUnit(selected.unit);
+      }
+    }
   }, [ingredientName]);
 
-  useEffect(() => {
-    const onBackPress = () => {
-      router.back();
-      return true;
-    };
-    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-    return () => sub.remove();
-  }, []);
+  useBackHandler(() => {
+    router.back()
+    return true;
+  });
 
   return (
     <>
       <KeyboardAwareScrollView
-        className="flex-1 bg-accent dark:bg-black px-4 pt-8"
+        className="flex-1 bg-[#fff] dark:bg-black px-4 pt-8"
         contentContainerStyle={{ paddingBottom: 160 }}
         keyboardShouldPersistTaps="handled"
         enableOnAndroid
@@ -163,7 +172,7 @@ export default function RecipeForm() {
             onChangeText={setTitle}
             placeholder="Contoh: Nasi Goreng"
             placeholderTextColor="#9CA3AF"
-            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-gray-600 rounded-2xl px-4 py-3 text-black dark:text-white shadow-sm"
+            className="bg-white dark:bg-neutral-900 border border-primary dark:border-gray-600 rounded-2xl px-4 py-3 text-black dark:text-white shadow-sm"
           />
         </View>
 
@@ -178,7 +187,7 @@ export default function RecipeForm() {
         <View className="relative flex-1 flex-row mb-6 gap-2">
           <TouchableOpacity
             onPress={pickImage}
-            className="bg-gray-100 dark:bg-neutral-800 h-32 py-4 px-4 mr-4 rounded-2xl border border-dashed justify-center items-center gap-2 border-gray-400 dark:border-gray-600"
+            className="bg-gray-100 dark:bg-neutral-800 h-32 py-4 px-4 mr-4 rounded-2xl border border-dashed justify-center items-center gap-2 border-primary dark:border-gray-600"
           >
             <Ionicons name='add-circle-outline' size={24} color="white" />
             <Text className="text-center text-gray-700 dark:text-gray-300 font-medium">Tambah Gambar</Text>
@@ -193,7 +202,7 @@ export default function RecipeForm() {
                   </View>
                 ) : (
                   <>
-                    <Image source={{ uri: img.uri }} className="w-full h-full rounded-xl border border-gray-300" />
+                    <Image source={{ uri: img.uri }} className="w-full h-full rounded-xl border border-primary" />
                     <TouchableOpacity
                       onPress={() => handleRemoveImage(index)}
                       className="absolute top-1 right-1 bg-red-500 w-6 h-6 rounded-full items-center justify-center"
@@ -209,15 +218,23 @@ export default function RecipeForm() {
 
         <View className="mb-2">
           <Text className="text-gray-700 dark:text-gray-200 font-semibold mb-2">Bahan-bahan</Text>
-          <Animated.View style={{ backgroundColor, borderRadius: 100, padding: 2 }}>
+          <Animated.View style={{ backgroundColor, borderRadius: 100, padding: 2, }}>
             <View className="rounded-xl overflow-hidden">
               <IngredientsDropdown
-                options={items}
+                options={ingredients.map((i) => ({
+                  label: i.name,
+                  value: i.name, // Pakai name, biar bisa langsung ke state utama
+                }))}
                 selectedValue={ingredientName}
-                onSelect={setIngredientName}
-                placeholder="Pilih bahan"
-                onAddNew={() => router.push('/(tabs)/ingredientsSetUp')}
+                onSelect={(item) => {
+                  setIngredientName(item.value); // 🟢 Fix penting
+                  const selected = ingredients.find((i) => i.name === item.value);
+                  if (selected) {
+                    setUnit(selected.unit);
+                  }
+                }}
               />
+
             </View>
           </Animated.View>
         </View>
@@ -232,7 +249,7 @@ export default function RecipeForm() {
                 keyboardType="numeric"
                 placeholder="Jumlah"
                 placeholderTextColor="#9CA3AF"
-                className="border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2 text-black dark:text-white dark:bg-neutral-900"
+                className="border border-primary dark:border-gray-600 rounded-xl px-4 py-2 text-black dark:text-white dark:bg-neutral-900"
               />
             </Animated.View>
           </View>
@@ -248,10 +265,10 @@ export default function RecipeForm() {
 
         <TouchableOpacity
           onPress={handleAddIngredient}
-          className="bg-primary py-3 px-4 rounded-xl mb-6 flex-row justify-center items-center gap-2"
+          className="bg-accent-dark py-3 px-4 rounded-xl mb-6 flex-row justify-center items-center gap-2"
         >
-          <Ionicons name='add-circle-outline' size={24} color="white" />
-          <Text className="text-center text-white font-semibold">
+          <Ionicons name='add-circle-outline' size={24} color="204c4b" />
+          <Text className="text-center text-primary font-semibold">
             {editIngredientId ? 'Perbarui Bahan' : 'Tambah Bahan'}
           </Text>
         </TouchableOpacity>
@@ -307,7 +324,7 @@ export default function RecipeForm() {
         </Text>
       </KeyboardAwareScrollView>
 
-      <View className="absolute bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-accent-dark dark:bg-black border-t border-gray-200 dark:border-neutral-800">
+      <View className="absolute bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-[#fff] dark:bg-black border-t border-gray-200 dark:border-neutral-800">
         <Text className="text-gray-700 dark:text-gray-200 font-semibold mb-2">
           Total HPP: Rp {calculateTotalHPP().toLocaleString('id-ID')}
         </Text>

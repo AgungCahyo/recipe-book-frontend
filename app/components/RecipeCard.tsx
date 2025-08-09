@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function RecipeCard({ item, isDark, onPress }: any) {
   const cardWidth = (Dimensions.get('window').width - 40 - 12) / 2;
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -18,7 +19,6 @@ export default function RecipeCard({ item, isDark, onPress }: any) {
         },
       ]}
     >
-
       {/* === Thumbnail Image or Placeholder === */}
       {item.imageUris?.[0] ? (
         <Image
@@ -28,8 +28,9 @@ export default function RecipeCard({ item, isDark, onPress }: any) {
         />
       ) : (
         <View
-          className={`w-full h-28 items-center justify-center ${isDark ? 'bg-gray-800' : 'bg-gray-200'
-            }`}
+          className={`w-full h-28 items-center justify-center ${
+            isDark ? 'bg-gray-800' : 'bg-gray-200'
+          }`}
         >
           <Ionicons
             name="image-outline"
@@ -45,14 +46,27 @@ export default function RecipeCard({ item, isDark, onPress }: any) {
         {/* Title */}
         <Text
           numberOfLines={1}
-          className={`text-sm font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'
-            }`}
+          className={`text-sm font-semibold mb-1 ${
+            isDark ? 'text-white' : 'text-gray-900'
+          }`}
         >
           {item.title}
         </Text>
 
+        {/* Harga Jual */}
+        <Text
+          className={`text-xs font-medium mt-1 ${
+            isDark ? 'text-blue-400' : 'text-primary'
+          }`}
+        >
+          Harga Jual: Rp{' '}
+          {item.sellingPrice
+            ? item.sellingPrice.toLocaleString('id-ID')
+            : '—'}
+        </Text>
+
         {/* Subtitle: jumlah bahan + kategori */}
-        <View className="flex-row items-center gap-1">
+        <View className="flex-row items-center gap-1 mt-1">
           <Ionicons
             name="pricetag-outline"
             size={12}
@@ -60,10 +74,13 @@ export default function RecipeCard({ item, isDark, onPress }: any) {
           />
           <Text
             numberOfLines={1}
-            className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+            className={`text-xs ${
+              isDark ? 'text-gray-400' : 'text-gray-500'
+            }`}
           >
-            {`${item.ingredients.length} bahan • ${item.category || 'Tanpa kategori'}`}
-
+            {`${item.ingredients.length} bahan • ${
+              item.category || 'Tanpa kategori'
+            }`}
           </Text>
         </View>
       </View>

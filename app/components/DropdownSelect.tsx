@@ -38,13 +38,13 @@ export default function DropdownSelect({
   return (
     <View className={`mb-4 ${className}`}>
       {label && (
-        <Text className="text-gray-700 dark:text-gray-300 font-semibold mb-2">
+        <Text className="text-gray-100 dark:text-gray-300 font-semibold mb-2">
           {label}
         </Text>
       )}
       <TouchableOpacity
         onPress={() => setOpen(true)}
-        className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-neutral-900 rounded-xl px-4 py-2 justify-center"
+        className="border border-primary dark:border-gray-600 bg-white dark:bg-neutral-900 rounded-xl px-4 py-2 justify-center"
       >
         <Text className={`text-base ${value ? 'text-gray-800 dark:text-white' : 'text-gray-400'}`}>
           {value || placeholder}
@@ -57,7 +57,7 @@ export default function DropdownSelect({
           onPress={() => setOpen(false)}
         >
           <Pressable
-            className="bg-white dark:bg-neutral-900 rounded-xl p-4 max-h-[400px] w-full"
+            className="bg-accent dark:bg-neutral-900 rounded-xl p-4 max-h-[400px] w-full"
             onStartShouldSetResponder={() => true}
           >
             <TextInput
@@ -65,7 +65,7 @@ export default function DropdownSelect({
               value={search}
               onChangeText={setSearch}
               placeholderTextColor="#9CA3AF"
-              className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 mb-3 text-black dark:text-white bg-white dark:bg-neutral-800"
+              className="border border-primary dark:border-gray-600 rounded-md px-3 py-2 mb-3 text-black dark:text-white bg-white dark:bg-neutral-800"
             />
 
             <FlatList
@@ -77,9 +77,9 @@ export default function DropdownSelect({
                     onSelect(item);
                     setOpen(false);
                   }}
-                  className="py-3 px-2 border-b border-gray-100 dark:border-gray-700"
+                  className="py-3 px-2 border-b border-primary/30 dark:border-gray-700"
                 >
-                  <Text className="text-gray-800 dark:text-white text-base">
+                  <Text className="text-primary dark:text-white text-base">
                     {item}
                   </Text>
                 </TouchableOpacity>

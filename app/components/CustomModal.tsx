@@ -74,7 +74,7 @@ export default function CustomModal({ open, onClose, title, children }: Props) {
     <Modal transparent animationType="none" visible={isVisible}>
       <Animated.View style={[backdropStaticStyle, backdropAnimatedStyle]}>
 
-        <Animated.View style={[slideStyle]} className="bg-white dark:bg-neutral-900 rounded-t-2xl p-4 pt-6 w-full">
+        <Animated.View style={[slideStyle]} className="bg-[#fff] dark:bg-neutral-900 rounded-t-2xl p-4 pt-6 w-full">
           <Text className="text-lg font-semibold text-gray-900 dark:text-white mb-3">{title}</Text>
           <View className="max-h-[70vh]">{children}</View>
           <TouchableOpacity

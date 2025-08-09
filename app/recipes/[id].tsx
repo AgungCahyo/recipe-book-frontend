@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,49 +8,87 @@ import {
   Alert,
   useColorScheme,
   Dimensions,
+  TextInput,
+  ActivityIndicator,
+  StyleSheet
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useRecipes } from 'context/RecipesContext';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from 'app/components/BackButton';
+import { useSellingPrice } from 'hooks/useSellingPrice';
+import useBackHandler from 'hooks/backHandler';
+import { useIngredients, Ingredient } from 'context/ingredients/IngredientsProvider';
+import { useNavigationState } from 'context/NavigationContext';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function RecipeDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { recipes, deleteRecipe } = useRecipes();
+  const { recipes, deleteRecipe, getRecipeById } = useRecipes();
+  const { ingredients: allIngredients } = useIngredients();
   const router = useRouter();
   const theme = useColorScheme();
   const isDark = theme === 'dark';
 
-  const recipe = recipes.find((r) => r.id === id);
-  const hpp = recipe?.hpp || 0;
+  const recipe = getRecipeById(id);
+  const { setIsNavigating } = useNavigationState();
+  const [loading, setLoading] = useState(true);
+  useFocusEffect(() => {
+    setIsNavigating(false);
+  });
 
-  const [margin, setMargin] = useState(60);
-  const [displayedPrice, setDisplayedPrice] = useState(0);
-  const [showFullSteps, setShowFullSteps] = useState(false);
-  const [showFullIngredients, setShowFullIngredients] = useState(false);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [updatedRecipe, setUpdatedRecipe] = useState(recipe);
+
+   const ingredientsMap: { [key: string]: Ingredient } = useMemo(() => {
+    const map: { [key: string]: Ingredient } = {};
+    allIngredients.forEach((ingredient) => {
+      map[ingredient.id] = ingredient;
+    });
+    return map;
+  }, [allIngredients]);
 
   useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+    if (!recipe) return;
+    setLoading(true);
 
-    timerRef.current = setTimeout(() => {
-      const newPrice = Math.round(hpp + (hpp * margin) / 100);
-      setDisplayedPrice(newPrice);
-    }, 100);
+    const updatedIngredients = recipe.ingredients.map(item => {
+      const latest = ingredientsMap[item.ingredientId];
+      if (!latest) return item;
+      const updatedCost = parseFloat((latest.pricePerUnit * item.quantity).toFixed(2));
+      return { ...item, cost: updatedCost, unit: latest.unit, name: latest.name };
+    });
 
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [margin, hpp]);
+    setUpdatedRecipe({ ...recipe, ingredients: updatedIngredients });
+    setLoading(false);
+  }, [ingredientsMap, recipe]);
 
-  if (!recipe) {
+
+  useBackHandler(() => {
+    router.back();
+    return true;
+  });
+
+  const {
+    margin,
+    setMargin,
+    displayedPrice,
+    manualPrice,
+    setManualPrice,
+    handleSaveManualPrice,
+    saving,
+    finalPrice,
+    isManual,
+    hpp,
+  } = useSellingPrice(updatedRecipe);
+
+  if (loading || !updatedRecipe) {
     return (
-      <View className="flex-1 justify-center items-center bg-white dark:bg-black">
-        <Text className="text-gray-500 dark:text-gray-400">Memuat data resep...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: isDark ? '#000' : '#fff' }]}>
+        <ActivityIndicator size="large" color="#0a84ff" />
+        <Text style={{ marginTop: 10, color: isDark ? '#fff' : '#000' }}>Memuat data resep...</Text>
       </View>
     );
   }
@@ -62,44 +100,54 @@ export default function RecipeDetailPage() {
         text: 'Hapus',
         style: 'destructive',
         onPress: async () => {
-          await deleteRecipe(recipe.id);
-          setTimeout(() => router.back(), 100);
+          await deleteRecipe(updatedRecipe.id);
+          setTimeout(() => {
+            if (router.canGoBack?.()) {
+              router.back();
+            }
+          }, 200);
         },
       },
     ]);
   };
 
   return (
-    <View className="flex-1 bg-white dark:bg-black">
+    <View className="flex-1 bg-accent/60 dark:bg-black">
+      {/* Header */}
       <View className="flex-row items-center justify-between mt-4 mb-2 px-5">
         <View className="w-10">
           <BackButton />
         </View>
         <View className="flex-1 items-center">
-          <Text className="text-xl font-bold text-blue-600 dark:text-blue-400 text-center" numberOfLines={1}>
-            {recipe.title}
+          <Text
+            className="text-3xl font-bold text-primary dark:text-blue-400 text-center"
+            numberOfLines={1}
+          >
+            {updatedRecipe.title}
           </Text>
           <Text className="text-center text-xs text-zinc-500 dark:text-zinc-400">
-            {recipe.category || 'Tanpa Kategori'}
+            {updatedRecipe.category || 'Tanpa Kategori'}
           </Text>
         </View>
         <View className="w-10" />
       </View>
 
+      {/* Main Content */}
       <ScrollView showsVerticalScrollIndicator={false}>
-        {Array.isArray(recipe.imageUris) && recipe.imageUris.length > 0 && (
+        {/* Gambar Resep */}
+        {Array.isArray(updatedRecipe.imageUris) && updatedRecipe.imageUris.length > 0 && (
           <ScrollView
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            className="mb-4"
+            className="mb-4 mx-2 rounded-xl border border-primary"
           >
-            {recipe.imageUris.map((uri, index) => (
+            {updatedRecipe.imageUris.map((uri, index) => (
               <Image
                 key={index}
                 source={{ uri }}
                 style={{ width: screenWidth, height: 240 }}
-                className="rounded-none"
+                className="rounded-lg mr-3"
                 resizeMode="cover"
               />
             ))}
@@ -107,48 +155,42 @@ export default function RecipeDetailPage() {
         )}
 
         <View className="px-5 pb-28">
-          <Text className="text-base font-semibold text-zinc-800 dark:text-zinc-200 mb-1">Langkah-langkah</Text>
-          {recipe.description ? (
+          {/* Langkah-langkah */}
+          <Text className="text-xl font-semibold text-dark dark:text-zinc-200 mb-1">Langkah-langkah</Text>
+          {updatedRecipe.description ? (
             <>
               <Text
-                className="text-sm text-zinc-700 dark:text-zinc-300 mb-1 leading-relaxed"
-                numberOfLines={showFullSteps ? undefined : 4}
+                className="text-lg text-zinc-700 dark:text-zinc-300 mb-1 leading-relaxed"
+                numberOfLines={4}
               >
-                {recipe.description}
+                {updatedRecipe.description}
               </Text>
-              <TouchableOpacity onPress={() => setShowFullSteps((prev) => !prev)}>
-                <Text className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-4">
-                  {showFullSteps ? 'Sembunyikan' : 'Lihat Selengkapnya'}
-                </Text>
-              </TouchableOpacity>
+              {/* You can add toggle for full steps if needed */}
             </>
           ) : (
-            <Text className="text-zinc-400 mb-4 italic">Tidak ada deskripsi langkah.</Text>
+            <Text className="text-primary/50 mb-4 italic text-lg">Tidak ada deskripsi langkah.</Text>
           )}
 
-          <Text className="text-base font-semibold text-zinc-800 dark:text-zinc-200 mb-1">Bahan-bahan</Text>
+          {/* Bahan-bahan */}
+          <Text className="text-xl font-semibold text-dark dark:text-zinc-200 mb-1">Bahan-bahan</Text>
           <View className="space-y-2 mb-2">
-            {(showFullIngredients ? recipe.ingredients : recipe.ingredients.slice(0, 5)).map((item) => (
+            {updatedRecipe.ingredients.map((item) => (
               <View key={item.id} className="flex-row items-center gap-2">
-                <View className="w-2 h-2 rounded-full bg-zinc-400 dark:bg-zinc-600 mt-1" />
-                <Text className="text-sm text-zinc-900 dark:text-white">
+                <View className="w-2 h-2 rounded-lg bg-primary/50 dark:bg-zinc-600 " />
+                <Text className="text-lg text-zinc-900 dark:text-white">
                   {item.quantity} {item.unit} {item.name}
                 </Text>
               </View>
             ))}
           </View>
-          {recipe.ingredients.length > 5 && (
-            <TouchableOpacity onPress={() => setShowFullIngredients((prev) => !prev)}>
-              <Text className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-6">
-                {showFullIngredients ? 'Sembunyikan' : 'Lihat Semua Bahan'}
-              </Text>
-            </TouchableOpacity>
-          )}
 
-          <Text className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Atur Margin (%)</Text>
-          <View className="flex-row justify-between items-center mb-2">
+          {/* Harga dan margin */}
+          <Text className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Simulasi Margin (%)</Text>
+          <View className="flex-row justify-between items-center mb-1">
             <Text className="text-xs text-zinc-500 dark:text-zinc-400">Margin: {margin}%</Text>
-            <Text className="text-xs text-zinc-500 dark:text-zinc-400">HPP: Rp {hpp.toLocaleString('id-ID')}</Text>
+            <Text className="text-xs text-zinc-500 dark:text-zinc-400">
+              HPP: Rp {updatedRecipe.ingredients.reduce((total, i) => total + (i.cost || 0), 0).toLocaleString('id-ID')}
+            </Text>
           </View>
 
           <MultiSlider
@@ -156,31 +198,66 @@ export default function RecipeDetailPage() {
             min={0}
             max={300}
             step={5}
-            selectedStyle={{ backgroundColor: '#3B82F6', height: 6, borderRadius: 999 }}
+            selectedStyle={{ backgroundColor: '#204c4b', height: 6, borderRadius: 999 }}
             unselectedStyle={{ backgroundColor: isDark ? '#334155' : '#E5E7EB', height: 6, borderRadius: 999 }}
             trackStyle={{ height: 6, borderRadius: 999 }}
             onValuesChange={(val) => setMargin(val[0])}
             customMarker={() => (
-              <View className="items-center justify-center w-8 h-8 bg-white dark:bg-zinc-900 border-2 border-blue-500 rounded-full">
-                <Ionicons name="cash-outline" size={18} color="#3B82F6" />
+              <View className="items-center justify-center w-8 h-8 bg-accent dark:bg-zinc-900 border-2 border-primary rounded-full">
+                <Ionicons name="cash-outline" size={18} color="#204c4b" />
               </View>
             )}
             containerStyle={{ paddingHorizontal: 0, marginHorizontal: 5 }}
             sliderLength={screenWidth - 45}
           />
 
-          <Text className="text-xl font-extrabold text-center text-blue-600 dark:text-blue-400 mt-6">
-            Harga Jual: Rp {displayedPrice.toLocaleString('id-ID')}
+          <Text className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            Estimasi Harga Jual: Rp {displayedPrice.toLocaleString('id-ID')}
           </Text>
+
+          {/* Harga Jual Manual */}
+          <Text className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mt-6 mb-2">Tetapkan Harga Jual Manual</Text>
+          <View className="items-center justify-start gap-3 flex-row">
+            <TextInput
+              value={manualPrice}
+              onChangeText={setManualPrice}
+              placeholder="Rp."
+              style={{ width: 100 }}
+              keyboardType="numeric"
+              className="bg-white text-center text-xl font-bold dark:bg-zinc-900 border border-gray-300 dark:border-zinc-600 rounded-xl px-4 py-2 text-black dark:text-white"
+            />
+            <TouchableOpacity
+              onPress={handleSaveManualPrice}
+              disabled={saving}
+              style={{ width: 100 }}
+              className="bg-primary dark:bg-blue-500 py-3 rounded-xl active:opacity-85"
+            >
+              <Text className="text-center text-white font-semibold">
+                {saving ? 'Menyimpan...' : 'Set Harga Jual'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Harga Jual Saat Ini */}
+          <View className="mt-6 items-center">
+            <Text className="text-sm text-zinc-500 dark:text-zinc-400 mb-1">Harga Jual Saat Ini</Text>
+            <Text className="text-2xl font-extrabold text-primary dark:text-blue-400">
+              Rp {finalPrice.toLocaleString('id-ID')}
+            </Text>
+            {isManual && (
+              <Text className="text-xs text-zinc-400 mt-1 italic">Ditentukan manual oleh pengguna</Text>
+            )}
+          </View>
         </View>
       </ScrollView>
 
-      <View className="absolute bottom-0 left-0 right-0 px-5 py-4 bg-white dark:bg-black border-t border-zinc-200 dark:border-zinc-800 flex-row gap-3">
+      {/* Tombol Bawah */}
+      <View className="absolute bottom-0 left-0 right-0 px-5 py-4 bg-accent dark:bg-black border-t border-primary/50 mx-2 dark:border-zinc-800 flex-row gap-3">
         <TouchableOpacity
-          onPress={() => router.push({ pathname: '/recipes/recipeForm', params: { id: recipe.id } })}
-          className="flex-1 py-3 rounded-2xl bg-blue-600 dark:bg-blue-500 active:opacity-85"
+          onPress={() => router.push({ pathname: '/recipes/recipeForm', params: { id: updatedRecipe.id } })}
+          className="flex-1 py-3 rounded-2xl bg-primary dark:bg-blue-500 active:opacity-85"
         >
-          <Text className="text-center text-white text-sm font-semibold">Edit</Text>
+          <Text className="text-center text-accent text-sm font-semibold">Edit</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -192,4 +269,12 @@ export default function RecipeDetailPage() {
       </View>
     </View>
   );
-};
+}
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});

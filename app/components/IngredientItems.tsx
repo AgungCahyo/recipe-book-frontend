@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Checkbox from 'expo-checkbox';
-import { Ingredient } from 'context/IngredientsContext';
+import { Ingredient } from 'context/ingredients/IngredientsProvider';
 
 type Props = {
   item: Ingredient;
@@ -37,14 +37,14 @@ function IngredientItem({
 
         <View className="flex-1">
           <Text
-            className="text-dark text-xl dark:text-accent font-semibold"
+            className="text-primary text-lg dark:text-accent font-semibold"
             numberOfLines={1}
             ellipsizeMode="tail"
           >
             {item.name}
           </Text>
 
-          <Text className="text-lg text-primary-dark mt-0.5">
+          <Text className="text-sm text-primary-dark mt-0.5">
             {`${item.quantity} ${item.unit} • Rp${item.totalPrice.toLocaleString()}`}
           </Text>
 
@@ -57,10 +57,4 @@ function IngredientItem({
   );
 }
 
-export default React.memo(IngredientItem, (prev, next) => {
-  return (
-    prev.item.id === next.item.id &&
-    prev.isSelected === next.isSelected &&
-    prev.isSelectionMode === next.isSelectionMode
-  );
-});
+export default IngredientItem;

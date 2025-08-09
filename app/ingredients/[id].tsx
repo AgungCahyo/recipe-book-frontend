@@ -7,7 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useIngredients } from 'context/IngredientsContext';
+import { useIngredients } from 'context/ingredients/IngredientsProvider';
 import showToast from 'utils/showToast';
 
 export default function EditIngredientPage() {

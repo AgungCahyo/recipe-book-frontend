@@ -1,21 +1,25 @@
-// hooks/useRecipeForm.ts
-import { useEffect, useMemo, useRef, useState } from 'react';
-import uuid from 'react-native-uuid';
+import { useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
-import * as ImageManipulator from 'expo-image-manipulator';
+
 import { useRecipes } from '../context/RecipesContext';
-import { useIngredients } from '../context/IngredientsContext';
+import { useIngredients } from '../context/ingredients/IngredientsProvider';
 import { useDraftRecipe } from '../context/DraftRecipeContext';
 import { useAlert } from '../context/AlertContext';
+import { useRecipeUploader } from './useRecipeUploader';
+import { useRecipeIngredients } from './useRecipeIngredients';
+import { useRecipeSteps } from './useRecipeSteps';
+import { useRecipeMetadata } from './useRecipeMetaData';
 
-export type ImageStatus = {
-  uri: string;
-  status: 'loading' | 'done' | 'error';
-};
+function shallowEqualArray(arr1: any[], arr2: any[]) {
+  if (arr1.length !== arr2.length) return false;
+  for (let i = 0; i < arr1.length; i++) {
+    if (JSON.stringify(arr1[i]) !== JSON.stringify(arr2[i])) return false;
+  }
+  return true;
+}
 
 export function useRecipeForm(id?: string) {
+  console.log('useRecipeForm called with id:', id);
   const router = useRouter();
   const { showAlert } = useAlert();
   const { recipes, addRecipe, editRecipe } = useRecipes();
@@ -25,13 +29,17 @@ export function useRecipeForm(id?: string) {
   const editing = !!id;
   const existingRecipe = recipes.find((r) => r.id === id);
 
-  const [isUploading, setIsUploading] = useState(false);
-
-  const [imageUris, setImageUris] = useState<ImageStatus[]>([]);
-  const [uploadQueue, setUploadQueue] = useState<ImageStatus[]>([]);
+  // Reset draft saat buka form baru - FIX: Add dependency array
+  useEffect(() => {
+    console.log('[useEffect] clearDraft triggered, editing:', editing);
+    if (!editing) clearDraft();
+    console.log('[clearDraft] draft cleared');
+  }, [editing]); // Removed clearDraft from dependencies
 
   const recipeData = useMemo(() => {
+    console.log('[useMemo] Computing recipeData');
     if (editing && existingRecipe) {
+      console.log('[useMemo] Editing mode, existingRecipe found:', existingRecipe.id);
       return {
         title: existingRecipe.title,
         steps: existingRecipe.description?.split('\n') || [''],
@@ -41,8 +49,11 @@ export function useRecipeForm(id?: string) {
         })),
         ingredients: existingRecipe.ingredients || [],
         category: existingRecipe.category || '',
+        sellingPrice: existingRecipe.sellingPrice ?? null,
+        margin: existingRecipe.margin ?? undefined,
       };
     }
+    console.log('[useMemo] New recipe mode, using draft');
     return {
       ...draft,
       imageUris: (draft.imageUris || []).map((uri) => ({
@@ -50,250 +61,249 @@ export function useRecipeForm(id?: string) {
         status: 'done' as const,
       })),
     };
-  }, [editing, existingRecipe, draft]);
+  }, [editing, existingRecipe?.id, existingRecipe?.title, existingRecipe?.description, existingRecipe?.category, existingRecipe?.sellingPrice, existingRecipe?.margin, JSON.stringify(existingRecipe?.imageUris), JSON.stringify(existingRecipe?.ingredients), JSON.stringify(draft)]);
 
-  const [title, setTitle] = useState('');
-  const [steps, setSteps] = useState<string[]>(['']);
-  const [ingredientsList, setIngredientsList] = useState<any[]>([]);
-  const [category, setCategory] = useState('');
-const [editIngredientId, setEditIngredientId] = useState<string | null>(null);
+  const {
+    ingredientName,
+    setIngredientName,
+    quantity,
+    setQuantity,
+    unit,
+    setUnit,
+    ingredientsList,
+    setIngredientsList,
+    addIngredient,
+    removeIngredient,
+    editIngredientId,
+    setEditIngredientId,
+  } = useRecipeIngredients(recipeData.ingredients);
 
-  const [ingredientName, setIngredientName] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [unit, setUnit] = useState('');
+  const {
+    imageUris,
+    setImageUris,
+    isUploading,
+    pickImage,
+  } = useRecipeUploader(showAlert, recipeData.imageUris);
+
+  const {
+    steps,
+    setSteps,
+    updateStep,
+    addStep,
+    removeStep,
+  } = useRecipeSteps(recipeData.steps);
+
+  const {
+    title,
+    setTitle,
+    category,
+    setCategory,
+  } = useRecipeMetadata({
+    initialTitle: recipeData.title,
+    initialCategory: recipeData.category,
+    initialSteps: recipeData.steps,
+    initialIngredients: recipeData.ingredients,
+    initialImages: recipeData.imageUris,
+    steps,
+    ingredients: ingredientsList,
+    imageUris,
+    isEditing: editing,
+  });
 
   const prevDraftRef = useRef(draft);
 
-  useEffect(() => {
-    if (!recipeData || !recipeData.title) return;
-    setTitle(recipeData.title);
-    setSteps(recipeData.steps);
-    setImageUris(recipeData.imageUris);
-    setIngredientsList(recipeData.ingredients);
-    setCategory(recipeData.category);
-  }, []);
+  // FIX: Stabilize arrays dengan cara yang lebih efisien
+  const stableSteps = useMemo(() => {
+    return [...steps];
+  }, [steps.length, steps.join('|||')]); // Use delimiter that's unlikely to appear in content
 
+  const stableIngredientsList = useMemo(() => {
+    return [...ingredientsList];
+  }, [
+    ingredientsList.length,
+    ingredients.map(i => `${i.id}-${i.name}-${i.unit}-${i.pricePerUnit}`).join('|||')
+
+  ]);
+
+  const stableImageUris = useMemo(() => {
+    return imageUris.map(i => i.uri);
+  }, [
+    imageUris.length,
+    imageUris.map(i => i.uri).join('|||')
+  ]);
+
+  // FIX: Stabilize draft snapshot dengan useMemo yang lebih baik
+  const draftSnapshot = useMemo(() => ({
+    title: title || '',
+    steps: stableSteps,
+    ingredients: stableIngredientsList,
+    imageUris: stableImageUris,
+    category: category || '',
+  }), [title, stableSteps, stableIngredientsList, stableImageUris, category]);
+
+  // FIX: Use useCallback untuk updateDraft agar stabil
+  const stableUpdateDraft = useCallback((data: any) => {
+    updateDraft(data);
+  }, []); // Empty dependency - updateDraft should be stable from context
+
+  // FIX: Draft saving effect with better comparison
   useEffect(() => {
+    if (editing) return; // don't save draft when editing existing
+
     const prev = prevDraftRef.current;
+
     const isSame =
-      prev.title === title &&
-      JSON.stringify(prev.steps) === JSON.stringify(steps) &&
-      JSON.stringify(prev.ingredients) === JSON.stringify(ingredientsList) &&
-      JSON.stringify(prev.imageUris) === JSON.stringify(imageUris) &&
-      prev.category === category;
+      (prev.title || '') === (draftSnapshot.title || '') &&
+      shallowEqualArray(prev.steps || [], draftSnapshot.steps || []) &&
+      shallowEqualArray(prev.ingredients || [], draftSnapshot.ingredients || []) &&
+      shallowEqualArray(prev.imageUris || [], draftSnapshot.imageUris || []) &&
+      (prev.category || '') === (draftSnapshot.category || '');
 
     if (!isSame) {
-      const newDraft = { title, steps, ingredients: ingredientsList, imageUris: imageUris.map(i => i.uri), category };
-      updateDraft(newDraft);
-      prevDraftRef.current = newDraft;
+      stableUpdateDraft(draftSnapshot);
+      prevDraftRef.current = draftSnapshot;
     }
-  }, [title, steps, ingredientsList, imageUris, category]);
+  }, [draftSnapshot, editing, stableUpdateDraft]);
 
-  const updateStep = (index: number, value: string) => {
-    const updated = [...steps];
-    updated[index] = value;
-    setSteps(updated);
-  };
+  // FIX: Sync ingredients with better dependency management
+  useEffect(() => {
+    if (!editing || !existingRecipe) return;
 
-  const addStep = () => setSteps((prev) => [...prev, '']);
-  const removeStep = (index: number) => setSteps((prev) => prev.filter((_, i) => i !== index));
+    setIngredientsList((prevIngredientsList) => {
+      let changed = false;
+      const synced = prevIngredientsList.map((item) => {
+        const latest = ingredients.find((i) => i.id === item.ingredientId);
+        if (!latest) return item;
 
-  const addIngredient = () => {
-  if (!ingredientName || !quantity || !unit) {
-    showAlert('Isi nama, jumlah, dan satuan terlebih dahulu.', 'warning');
-    return;
-  }
+        const updatedCost = parseFloat((latest.pricePerUnit * item.quantity).toFixed(2));
 
-  const existing = ingredients.find((i) => i.name === ingredientName);
-  if (!existing) {
-    showAlert('Bahan tidak ditemukan. Tambahkan bahan terlebih dahulu.', 'error');
-    return;
-  }
-
-  const qty = parseFloat(quantity);
-  if (isNaN(qty) || qty <= 0) {
-    showAlert('Jumlah harus berupa angka positif.', 'warning');
-    return;
-  }
-
-  const cost = parseFloat((existing.pricePerUnit * qty).toFixed(2));
-
-  // Kalau sedang edit, ubah item yang sedang diedit
-  if (editIngredientId) {
-    setIngredientsList((prev) =>
-      prev.map((item) =>
-        item.id === editIngredientId
-          ? {
-              ...item,
-              name: existing.name,
-              quantity: qty,
-              unit,
-              cost,
-            }
-          : item
-      )
-    );
-    showAlert('Bahan berhasil diperbarui.', 'success');
-    setEditIngredientId(null);
-  } else {
-    // Cek duplikat hanya saat tambah baru
-    if (ingredientsList.find((i) => i.name === ingredientName)) {
-      showAlert('Bahan sudah ditambahkan.', 'error');
-      return;
-    }
-
-    const newIngredient = {
-      id: uuid.v4() as string,
-      name: existing.name,
-      quantity: qty,
-      unit,
-      cost,
-    };
-
-    setIngredientsList((prev) => [...prev, newIngredient]);
-    showAlert('Bahan berhasil ditambahkan.', 'success');
-  }
-
-  // Reset form
-  setIngredientName('');
-  setQuantity('');
-  setUnit('');
-};
-
-
-  const removeIngredient = (id: string) => {
-    setIngredientsList((prev) => prev.filter((i) => i.id !== id));
-  };
-
-  const calculateTotalHPP = () => {
-    return ingredientsList.reduce((total, item) => total + (item.cost || 0), 0);
-  };
-
- const handleSave = async () => {
-  const cleanedSteps = steps.filter((s) => s.trim() !== '');
-
-  if (!title.trim()) {
-    showAlert('Judul resep tidak boleh kosong.', 'error');
-    return;
-  }
-
-  if (ingredientsList.length === 0) {
-    showAlert('Tambahkan minimal satu bahan.', 'error');
-    return;
-  }
-
-  const data = {
-    title: title.trim(),
-    description: cleanedSteps.length > 0 ? cleanedSteps.join('\n') : '',
-    ingredients: ingredientsList,
-    imageUris: imageUris.map((i) => i.uri),
-    category: category.trim(),
-    hpp: calculateTotalHPP(),
-  };
-
-  if (editing && existingRecipe) {
-    await editRecipe(existingRecipe.id, data);
-    clearDraft();
-    showAlert('Resep diperbarui.', 'success');
-    router.back();
-  } else {
-    const newId = await addRecipe(data); // ⬅️ panggil addRecipe DAN return ID
-    clearDraft();
-    showAlert('Resep berhasil ditambahkan.', 'success');
-    router.replace(`recipes/${newId}`);
-  }
-};
-
-
-  const saveImagePermanently = async (uri: string): Promise<string> => {
-    try {
-      const fileName = uri.split('/').pop();
-      const newPath = `${FileSystem.documentDirectory}images/${fileName}`;
-
-      await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}images`, {
-        intermediates: true,
+        if (
+          item.name !== latest.name ||
+          item.unit !== latest.unit ||
+          item.cost !== updatedCost
+        ) {
+          changed = true;
+          return {
+            ...item,
+            name: latest.name,
+            unit: latest.unit,
+            cost: updatedCost,
+          };
+        }
+        return item;
       });
 
-      await FileSystem.copyAsync({ from: uri, to: newPath });
+      return changed ? synced : prevIngredientsList;
+    });
+  }, [
+    editing,
+    existingRecipe?.id, // Only depend on ID, not the whole object
+    ingredients.length, // Track ingredients changes more efficiently
+    ingredients.map(i => `${i.id}-${i.name}-${i.unit}-${i.pricePerUnit}`).join('|||')
 
-      return newPath;
-    } catch (err) {
-      showAlert('Gagal menyimpan gambar.', 'error');
-      throw err;
-    }
-  };
+  ]); // Removed setIngredientsList from dependencies
 
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      showAlert('Akses galeri dibutuhkan untuk memilih gambar.', 'warning');
+  const calculateTotalHPP = useCallback(() => {
+    return ingredientsList.reduce((total, item) => total + (item.cost || 0), 0);
+  }, [ingredientsList]);
+
+  const handleSave = useCallback(async () => {
+    const cleanedSteps = steps.filter((s) => s.trim() !== '');
+    const normalizedTitle = title.trim().toLowerCase();
+
+    if (!normalizedTitle) {
+      showAlert('Judul resep tidak boleh kosong.', 'error');
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 0.7,
+    const isDuplicateTitle = recipes.some((r) => {
+      if (editing && r.id === existingRecipe?.id) return false;
+      return r.title.trim().toLowerCase() === normalizedTitle;
     });
 
-    if (!result.canceled && result.assets.length > 0) {
-      const placeholders: ImageStatus[] = result.assets.map(() => ({
-        uri: '',
-        status: 'loading' as const,
-      }));
-      setUploadQueue((prev) => [...prev, ...placeholders]);
-      setTimeout(() => {
-        startImageUpload(result.assets);
-      }, 10);
+    if (isDuplicateTitle) {
+      showAlert('Judul resep sudah digunakan. Gunakan nama lain.', 'error');
+      return;
     }
-  };
 
-
-  const startImageUpload = async (assets: ImagePicker.ImagePickerAsset[]) => {
-    setIsUploading(true);
-
-    try {
-      const resizedUris = await Promise.all(
-        assets.map(async (asset) => {
-          const manipulated = await ImageManipulator.manipulateAsync(
-            asset.uri,
-            [{ resize: { width: 800 } }],
-            { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-          );
-          return manipulated.uri;
-        })
-      );
-
-      const savedUris = await Promise.all(resizedUris.map(saveImagePermanently));
-      const imageStatusList: ImageStatus[] = savedUris.map((uri) => ({
-        uri,
-        status: 'done' as const,
-      }));
-      setImageUris((prev) => [...prev, ...imageStatusList]);
-
-    } catch (err) {
-      console.error('❌ Gagal upload:', err);
-      showAlert('Gagal menyimpan gambar.', 'error');
-    } finally {
-      setUploadQueue((prev) => prev.slice(assets.length));
-      setIsUploading(false);
+    if (ingredientsList.length === 0) {
+      showAlert('Tambahkan minimal satu bahan.', 'error');
+      return;
     }
-  };
+
+    const data = {
+      title: title.trim(),
+      description: cleanedSteps.join('\n'),
+      ingredients: ingredientsList,
+      imageUris: imageUris.map((i) => i.uri),
+      category: category.trim(),
+      hpp: parseFloat(calculateTotalHPP().toFixed(2)),
+
+      ...(editing && existingRecipe?.sellingPrice !== undefined && {
+        sellingPrice: existingRecipe.sellingPrice,
+      }),
+      ...(editing && existingRecipe?.margin !== undefined && {
+        margin: existingRecipe.margin,
+      }),
+    };
+
+    if (editing && existingRecipe) {
+      await editRecipe(existingRecipe.id, data);
+      clearDraft();
+      showAlert('Resep diperbarui.', 'success');
+      router.back();
+    } else {
+      const newId = await addRecipe(data);
+      clearDraft();
+      showAlert('Resep berhasil ditambahkan.', 'success');
+      router.replace(`recipes/${newId}`);
+    }
+  }, [
+    steps,
+    title,
+    ingredientsList,
+    imageUris,
+    category,
+    calculateTotalHPP,
+    recipes,
+    editing,
+    existingRecipe?.id,
+    existingRecipe?.sellingPrice,
+    existingRecipe?.margin,
+    editRecipe,
+    addRecipe,
+    clearDraft,
+    showAlert,
+    router
+  ]);
 
   return {
-    title, setTitle,
-    steps, updateStep, addStep, removeStep,
-    ingredientsList, setIngredientName, setQuantity, setUnit,
-    ingredientName, quantity, unit,
-    addIngredient, removeIngredient,
-    imageUris: [...imageUris, ...uploadQueue], // digabungkan untuk ditampilkan
+    title,
+    setTitle,
+    steps,
+    updateStep,
+    addStep,
+    removeStep,
+    ingredientsList,
+    ingredientName,
+    setIngredientName,
+    quantity,
+    setQuantity,
+    unit,
+    setUnit,
+    addIngredient,
+    removeIngredient,
+    editIngredientId,
+    setEditIngredientId,
+    imageUris,
     setImageUris,
-    category, setCategory,
+    category,
+    setCategory,
     calculateTotalHPP,
     handleSave,
     editing,
     pickImage,
     isUploading,
-    setIngredientsList
+    setIngredientsList,
   };
 }

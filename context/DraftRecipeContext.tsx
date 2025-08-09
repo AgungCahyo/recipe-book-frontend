@@ -1,5 +1,5 @@
 // context/DraftRecipeContext.tsx
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Ingredient = {
@@ -28,65 +28,102 @@ type DraftContextType = {
 const DraftRecipeContext = createContext<DraftContextType | undefined>(undefined);
 const STORAGE_KEY = 'draft_recipe_data';
 
-export const DraftRecipeProvider = ({ children }: { children: ReactNode }) => {
-  const [draft, setDraftState] = useState<DraftRecipe>({
-    title: '',
-    steps: [''],
-    ingredients: [],
-    imageUris: [],
-    category: '',
-  });
+// FIXED: Create initial draft as constant to prevent recreating
+const INITIAL_DRAFT: DraftRecipe = {
+  title: '',
+  steps: [''],
+  ingredients: [],
+  imageUris: [],
+  category: '',
+};
 
-  // Load draft dari AsyncStorage
-  useEffect(() => {
-    const loadDraft = async () => {
-      try {
-        const json = await AsyncStorage.getItem(STORAGE_KEY);
-        if (json) {
-          const saved = JSON.parse(json);
-          setDraftState(saved);
-        }
-      } catch (err) {
+export const DraftRecipeProvider = ({ children }: { children: ReactNode }) => {
+  const [draft, setDraftState] = useState<DraftRecipe>(INITIAL_DRAFT);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // FIXED: Stable load function
+  const loadDraft = useCallback(async () => {
+    try {
+      const json = await AsyncStorage.getItem(STORAGE_KEY);
+      if (json) {
+        const saved = JSON.parse(json);
+        setDraftState(saved);
       }
-    };
-    loadDraft();
+    } catch (err) {
+      console.warn('Failed to load draft:', err);
+      setDraftState(INITIAL_DRAFT);
+    } finally {
+      setIsLoaded(true);
+    }
   }, []);
 
-  // Simpan ke AsyncStorage setiap ada perubahan
+  // Load draft on mount
   useEffect(() => {
-    const saveDraft = async () => {
-      try {
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-      } catch (err) {
-      }
-    };
-    saveDraft();
-  }, [draft]);
+    loadDraft();
+  }, [loadDraft]);
 
-  const setDraft = (newDraft: DraftRecipe) => {
+  // FIXED: Debounced save to prevent too many writes
+  useEffect(() => {
+    if (!isLoaded) return; // Don't save until loaded
+
+    const timeoutId = setTimeout(() => {
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(draft))
+        .catch(err => console.warn('Failed to save draft:', err));
+    }, 1000); // 1 second debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [draft, isLoaded]);
+
+  // FIXED: Stable functions with useCallback
+  const setDraft = useCallback((newDraft: DraftRecipe) => {
     setDraftState(newDraft);
-  };
+  }, []);
 
-  const updateDraft = (updates: Partial<DraftRecipe>) => {
-    setDraftState((prev) => ({ ...prev, ...updates }));
-  };
+  const updateDraft = useCallback((updates: Partial<DraftRecipe>) => {
+    setDraftState((prev) => {
+      // FIXED: More efficient comparison using JSON.stringify only when necessary
+      const newDraft = { ...prev, ...updates };
+      
+      // Quick shallow comparison first
+      let hasChanges = false;
+      for (const key in updates) {
+        if (prev[key as keyof DraftRecipe] !== newDraft[key as keyof DraftRecipe]) {
+          // For arrays/objects, do deep comparison only when shallow comparison fails
+          if (typeof prev[key as keyof DraftRecipe] === 'object' && 
+              typeof newDraft[key as keyof DraftRecipe] === 'object') {
+            if (JSON.stringify(prev[key as keyof DraftRecipe]) !== 
+                JSON.stringify(newDraft[key as keyof DraftRecipe])) {
+              hasChanges = true;
+              break;
+            }
+          } else {
+            hasChanges = true;
+            break;
+          }
+        }
+      }
 
-  const clearDraft = () => {
-    const emptyDraft = {
-      title: '',
-      steps: [''],
-      ingredients: [],
-      imageUris: [],
-      category: '',
-    };
-    setDraftState(emptyDraft);
+      return hasChanges ? newDraft : prev;
+    });
+  }, []);
+
+  const clearDraft = useCallback(() => {
+    setDraftState(INITIAL_DRAFT);
     AsyncStorage.removeItem(STORAGE_KEY).catch((err) =>
       console.warn('Gagal hapus draft:', err)
     );
-  };
+  }, []);
+
+  // FIXED: Stable context value
+  const contextValue = useMemo(() => ({
+    draft,
+    setDraft,
+    updateDraft,
+    clearDraft,
+  }), [draft, setDraft, updateDraft, clearDraft]);
 
   return (
-    <DraftRecipeContext.Provider value={{ draft, setDraft, updateDraft, clearDraft }}>
+    <DraftRecipeContext.Provider value={contextValue}>
       {children}
     </DraftRecipeContext.Provider>
   );

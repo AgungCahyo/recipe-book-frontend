@@ -10,10 +10,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import RecipeCard from './RecipeCard';
-import { Recipe } from 'context/RecipesContext'; // Ini udah bener kalau tipe Recipe ada di sini
+import { Recipe } from 'context/RecipesContext'; 
 
 type Props = {
-  data: Recipe[]; // ❌ sebelumnya salah: `data: Recipe;` padahal harus array
+  data: Recipe[];
   isDark: boolean;
   onPressRecipe: (id: string) => void;
 };

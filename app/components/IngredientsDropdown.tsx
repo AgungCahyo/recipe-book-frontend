@@ -17,9 +17,9 @@ type Option = {
 type Props = {
   options: Option[];
   selectedValue: string | null;
-  onSelect: (val: string) => void;
   onAddNew?: () => void;
   placeholder?: string;
+   onSelect: (item: Option) => void;
 };
 
 export default function IngredientsDropdown({
@@ -38,17 +38,17 @@ export default function IngredientsDropdown({
     );
   }, [options, search]);
 
-  const handleSelect = (value: string) => {
-    onSelect(value);
-    setModalVisible(false);
-    setSearch('');
-  };
+  const handleSelect = (item: Option) => {
+  onSelect(item); // kirim seluruh object
+  setModalVisible(false);
+  setSearch('');
+};
 
   return (
     <>
       <TouchableOpacity
         onPress={() => setModalVisible(true)}
-        className="border border-gray-300 rounded-lg px-4 py-3   dark:bg-gray-900"
+        className="border border-primary rounded-xl  px-4 py-3   dark:bg-gray-900"
       >
         <Text className="text-black dark:text-white">
           {selectedValue
@@ -75,7 +75,7 @@ export default function IngredientsDropdown({
               onChangeText={setSearch}
               placeholder="Cari opsi..."
               placeholderTextColor="#9CA3AF"
-              className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-md mb-3"
+              className="bg-gray-100 dark:bg-gray-800 border-primary text-gray-900 dark:text-white px-3 py-2 rounded-md mb-3"
             />
 
             {filteredOptions.length === 0 ? (
@@ -88,7 +88,7 @@ export default function IngredientsDropdown({
                 keyExtractor={(item) => item.value}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    onPress={() => handleSelect(item.value)}
+                    onPress={() => handleSelect(item)}
                     className="py-3 px-2 border-b border-gray-100 dark:border-gray-700"
                   >
                     <Text className="text-gray-800 dark:text-white text-base">

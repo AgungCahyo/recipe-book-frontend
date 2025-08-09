@@ -1,17 +1,18 @@
 // context/recipesContext.tsx
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import uuid from 'react-native-uuid';
 import * as FileSystem from 'expo-file-system';
-
+import { Ingredient } from './ingredients/IngredientsProvider';
 
 export type RecipeIngredient = {
   id: string;
+  ingredientId: string;
   name: string;
   quantity: number;
   unit: string;
-  cost?: number;
+  cost: number;
 };
 
 export type Recipe = {
@@ -22,6 +23,8 @@ export type Recipe = {
   imageUris?: string[];
   category?: string;
   hpp?: number;
+  sellingPrice?: number;
+  margin?: number;
 };
 
 type RecipesContextType = {
@@ -31,9 +34,9 @@ type RecipesContextType = {
   updateRecipeImage: (id: string, uri: string) => void;
   deleteRecipe: (id: string) => Promise<void>;
   getRecipeById: (id: string) => Recipe | undefined;
-  reloadRecipes: () => Promise<void>; // ✅ ini penting
+  reloadRecipes: () => Promise<void>;
+  getRecipeWithUpdatedCost: (id: string, allIngredients: Ingredient[]) => Recipe | undefined;
 };
-
 
 const RecipesContext = createContext<RecipesContextType | null>(null);
 const STORAGE_KEY = 'recipes_data';
@@ -42,87 +45,71 @@ export const RecipesProvider = ({ children }: { children: React.ReactNode }) => 
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [initialized, setInitialized] = useState(false);
 
-  useEffect(() => {
-    loadRecipes();
-  }, []);
-
-  useEffect(() => {
-    if (initialized) {
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
-    }
-  }, [recipes, initialized]);
-
-  const loadRecipes = async () => {
+  // FIXED: Stable functions with useCallback
+  const loadRecipes = useCallback(async () => {
     try {
       const json = await AsyncStorage.getItem(STORAGE_KEY);
       if (json) {
-        setRecipes(JSON.parse(json));
+        const parsed = JSON.parse(json);
+        setRecipes(parsed);
       }
     } catch (err) {
       console.error('❌ Gagal load recipes:', err);
+      setRecipes([]); // Fallback to empty array
     } finally {
       setInitialized(true);
     }
-  };
+  }, []);
 
-  const addRecipe = async (data: Omit<Recipe, 'id'>): Promise<string> => {
+  const addRecipe = useCallback(async (data: Omit<Recipe, 'id'>): Promise<string> => {
     const newId = uuid.v4() as string;
     const newRecipe: Recipe = {
       ...data,
       id: newId,
       ingredients: data.ingredients.map((ing) => ({
         ...ing,
-        id: uuid.v4() as string,
+        id: ing.id || (uuid.v4() as string), // Handle existing IDs
       })),
     };
 
-    const updated = [...recipes, newRecipe];
-    setRecipes(updated);
+    setRecipes((prev) => [...prev, newRecipe]);
+    console.log('RESEP BARU', JSON.stringify(newRecipe, null, 2));
     return newId;
-  };
+  }, []);
 
-  const editRecipe = async (id: string, updated: Omit<Recipe, 'id'>): Promise<void> => {
+  const editRecipe = useCallback(async (id: string, updated: Omit<Recipe, 'id'>): Promise<void> => {
     const updatedWithIds: Recipe = {
       ...updated,
       id,
-      ingredients: updated.ingredients.map((ing) =>
-        ing.id ? ing : { ...ing, id: uuid.v4() as string }
-      ),
+      ingredients: updated.ingredients.map((ing) => ({
+        ...ing,
+        id: ing.id || (uuid.v4() as string),
+      })),
     };
 
-    const updatedRecipes = recipes.map(r => (r.id === id ? updatedWithIds : r));
-    setRecipes(updatedRecipes);
-  };
+    setRecipes((prev) => prev.map(r => (r.id === id ? updatedWithIds : r)));
+  }, []);
 
-  const deleteRecipe = async (id: string): Promise<void> => {
-    const recipeToDelete = recipes.find((r) => r.id === id);
-
-    // Hapus gambar
-    if (recipeToDelete?.imageUris?.length) {
-      for (const uri of recipeToDelete.imageUris) {
-        try {
-          await FileSystem.deleteAsync(uri, { idempotent: true });
-        } catch (err) {
-          console.warn(`❌ Gagal hapus gambar: ${uri}`, err);
-        }
+  const deleteRecipe = useCallback(async (id: string): Promise<void> => {
+    setRecipes(prev => {
+      const recipeToDelete = prev.find((r) => r.id === id);
+      
+      // Background cleanup of images - don't block UI
+      if (recipeToDelete?.imageUris?.length) {
+        Promise.all(
+          recipeToDelete.imageUris.map(uri =>
+            FileSystem.deleteAsync(uri, { idempotent: true }).catch(err => {
+              console.warn(`❌ Gagal hapus gambar: ${uri}`, err);
+            })
+          )
+        ).catch(console.warn);
       }
-    }
 
-    // Update list
-    const filtered = recipes.filter((r) => r.id !== id);
-    setRecipes(filtered);
+      return prev.filter(r => r.id !== id);
+    });
+  }, []);
 
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-      await reloadRecipes(); // ⬅️ WAJIB ditunggu
-    } catch (err) {
-      console.error('❌ Gagal update storage:', err);
-    }
-
-  };
-
-
-  const updateRecipeImage = (id: string, uri: string) => {
+  const updateRecipeImage = useCallback((id: string, uri: string) => {
     setRecipes(prev =>
       prev.map(r =>
         r.id === id
@@ -130,28 +117,91 @@ export const RecipesProvider = ({ children }: { children: React.ReactNode }) => 
           : r
       )
     );
-  };
+  }, []);
 
-  const reloadRecipes = async () => {
+  const reloadRecipes = useCallback(async () => {
     try {
       const json = await AsyncStorage.getItem(STORAGE_KEY);
       const parsed = json ? JSON.parse(json) : [];
-      setRecipes(parsed); // ✅ always set, even if empty
+      setRecipes(parsed);
     } catch (err) {
-      setRecipes([]); // ✅ fallback ke empty state
+      console.error('Reload recipes error:', err);
+      setRecipes([]);
     }
+  }, []);
 
-  };
+  // FIXED: Optimize with memoization for better performance
+  const getRecipeWithUpdatedCost = useCallback((id: string, allIngredients: Ingredient[]) => {
+    const original = recipes.find((r) => r.id === id);
+    if (!original) return undefined;
 
+    // Create map only once
+    const ingredientPriceMap = allIngredients.reduce((map, ingredient) => {
+      map[ingredient.name] = ingredient.pricePerUnit;
+      return map;
+    }, {} as Record<string, number>);
 
-  const getRecipeById = (id: string) => {
+    // Update ingredients with O(1) lookup
+    const updatedIngredients = original.ingredients.map((item) => {
+      const pricePerUnit = ingredientPriceMap[item.name] ?? 0;
+      const cost = parseFloat((pricePerUnit * item.quantity).toFixed(2));
+      return { ...item, cost };
+    });
+
+    const updatedHPP = updatedIngredients.reduce((acc, cur) => acc + (cur.cost || 0), 0);
+
+    return {
+      ...original,
+      ingredients: updatedIngredients,
+      hpp: parseFloat(updatedHPP.toFixed(2)),
+    };
+  }, [recipes]);
+
+  const getRecipeById = useCallback((id: string) => {
     return recipes.find(r => r.id === id);
-  };
+  }, [recipes]);
+
+  // Load on mount
+  useEffect(() => {
+    loadRecipes();
+  }, [loadRecipes]);
+
+  // FIXED: Only save when actually initialized and recipes changed
+  useEffect(() => {
+    if (initialized && recipes.length >= 0) { // Allow empty array to be saved
+      // Debounce saves to prevent too many writes
+      const timeoutId = setTimeout(() => {
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(recipes))
+          .catch(err => console.error('Save recipes error:', err));
+      }, 100);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [recipes, initialized]);
+
+  // FIXED: Stable context value - only recreate when recipes change
+  const contextValue = useMemo(() => ({
+    recipes,
+    addRecipe,
+    editRecipe,
+    updateRecipeImage,
+    deleteRecipe,
+    getRecipeById,
+    reloadRecipes,
+    getRecipeWithUpdatedCost,
+  }), [
+    recipes,
+    addRecipe,
+    editRecipe,
+    updateRecipeImage,
+    deleteRecipe,
+    getRecipeById,
+    reloadRecipes,
+    getRecipeWithUpdatedCost
+  ]);
 
   return (
-    <RecipesContext.Provider
-      value={{ recipes, addRecipe, editRecipe, updateRecipeImage, deleteRecipe, getRecipeById, reloadRecipes }}
-    >
+    <RecipesContext.Provider value={contextValue}>
       {children}
     </RecipesContext.Provider>
   );
