@@ -1,10 +1,18 @@
-// utils/showToast.ts
-import { Platform, ToastAndroid, Alert } from 'react-native';
+import Toast from 'react-native-toast-message';
 
-export default function showToast(msg: string) {
-  if (Platform.OS === 'android') {
-    ToastAndroid.show(msg, ToastAndroid.SHORT);
-  } else {
-    Alert.alert(msg);
-  }
-};
+type ToastType = 'success' | 'error' | 'info' | 'warning';
+
+export default function showToast(
+  message: string,
+  type: ToastType = 'info',
+  subtitle?: string
+) {
+  Toast.show({
+    type,
+    text1: message,
+    text2: subtitle,
+    position: 'top',
+    visibilityTime: 3000,
+    topOffset: 50,
+  });
+}

@@ -3,7 +3,7 @@ module.exports = {
   content: ['./app/**/*.{js,ts,tsx}', './components/**/*.{js,ts,tsx}'],
 
   presets: [require('nativewind/preset')],
-   darkMode: 'media',
+   darkMode: 'class',
   
   theme: {
     extend: {
@@ -17,7 +17,9 @@ module.exports = {
         'background-light': '#FFFFFF',
         'background-dark': '#0B0F10', 
       },
-        
+        fontFamily: {
+         arch: ['ArchCondensed'],
+        }
     },
   },
   plugins: [],

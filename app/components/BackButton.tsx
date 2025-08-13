@@ -12,7 +12,7 @@ export default function BackButton() {
   return (
     <View>
       <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-        <Ionicons name="return-down-back-outline" size={28} color={isDark ? 'white' : 'black'} />
+        <Ionicons name="arrow-back" size={28} color={isDark ? 'white' : 'black'} />
       </TouchableOpacity>
     </View>
   );

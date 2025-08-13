@@ -15,8 +15,15 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "fonts": {
+      "Arch-Condensed": "/assets/font/Arch-Condensed.otf"
+    },
     "plugins": [
       "expo-router",
+      "@react-native-firebase/app",
+      [
+        "@react-native-google-signin/google-signin"
+      ],
       [
         "react-native-fbsdk-next",
         {
@@ -25,34 +32,14 @@
         }
       ]
     ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.cahyo507.recipebook",
-      "infoPlist": {
-        "SKAdNetworkItems": [
-          {
-            "SKAdNetworkIdentifier": "v9wttpbfk9.skadnetwork"
-          },
-          {
-            "SKAdNetworkIdentifier": "n38lu8286q.skadnetwork"
-          },
-          {
-            "SKAdNetworkIdentifier": "v9wttpbfk9.skadnetwork"
-          },
-          {
-            "SKAdNetworkIdentifier": "n38lu8286q.skadnetwork"
-          }
-        ],
-        "ITSAppUsesNonExemptEncryption": false
-      }
-    },
     "android": {
       "permissions": [
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET"
       ],
-      "package": "com.cahyo507.recipebook"
+      "package": "com.hpp.master",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"

@@ -1,25 +1,69 @@
-import { View, Text, TouchableOpacity, Image, Dimensions } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Image, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function RecipeCard({ item, isDark, onPress }: any) {
+type RecipeCardProps = {
+  item: any;
+  isDark: boolean;
+  onPress: () => Promise<void> | void;
+  onLongPress?: () => void;
+  selected?: boolean;
+  isSelectionMode?: boolean;
+};
+
+export default function RecipeCard({
+  item,
+  isDark,
+  onPress,
+  onLongPress,
+  selected = false,
+  isSelectionMode = false,
+}: RecipeCardProps) {
   const cardWidth = (Dimensions.get('window').width - 40 - 12) / 2;
+  const [loading, setLoading] = useState(false);
+
+  const handlePress = async () => {
+    if (isSelectionMode) {
+      onPress();
+      return;
+    }
+    setLoading(true);
+    try {
+      await onPress();
+    } catch {
+      // optional error handling
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Tailwind classes untuk border dan background berdasarkan state
+  const borderClass = selected
+    ? 'border-primary'
+    : isDark
+      ? 'border-gray-700'
+      : 'border-gray-300';
+
+  const bgClass = selected
+    ? isDark
+      ? 'bg-primary/20'
+      : 'bg-blue-500/20'
+    : isDark
+      ? 'bg-gray-800'
+      : 'bg-white';
 
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={handlePress}
+      onLongPress={onLongPress}
       activeOpacity={0.85}
-      style={[
-        {
-          width: cardWidth,
-          borderRadius: 12,
-          overflow: 'hidden',
-          borderWidth: 1,
-          borderColor: isDark ? '#374151' : '#E5E7EB',
-          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-        },
-      ]}
+      className={`${borderClass} ${bgClass} rounded-xl overflow-hidden relative`}
+      style={{
+        width: cardWidth,
+        borderWidth: 2,
+      }}
+      disabled={loading && !isSelectionMode}
     >
-      {/* === Thumbnail Image or Placeholder === */}
       {item.imageUris?.[0] ? (
         <Image
           source={{ uri: item.imageUris[0] }}
@@ -28,36 +72,29 @@ export default function RecipeCard({ item, isDark, onPress }: any) {
         />
       ) : (
         <View
-          className={`w-full h-28 items-center justify-center ${
-            isDark ? 'bg-gray-800' : 'bg-gray-200'
-          }`}
+          className={`${isDark ? 'bg-gray-700' : 'bg-gray-200'} justify-center items-center w-full h-28`}
         >
           <Ionicons
             name="image-outline"
             size={24}
             color={isDark ? '#9CA3AF' : '#6B7280'}
           />
-          <Text className="text-xs mt-1 text-gray-500">Tidak Ada Gambar</Text>
+          <Text className={`${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1 text-xs`}>
+            Tidak Ada Gambar
+          </Text>
         </View>
       )}
 
-      {/* === Info Section === */}
       <View className="p-3">
-        {/* Title */}
         <Text
           numberOfLines={1}
-          className={`text-sm font-semibold mb-1 ${
-            isDark ? 'text-white' : 'text-gray-900'
-          }`}
+          className={`${isDark ? 'text-white' : 'text-black'} text-lg font-semibold mb-1`}
         >
           {item.title}
         </Text>
 
-        {/* Harga Jual */}
         <Text
-          className={`text-xs font-medium mt-1 ${
-            isDark ? 'text-blue-400' : 'text-primary'
-          }`}
+          className={`${isDark ? 'text-blue-400' : 'text-primary'} text-base font-medium`}
         >
           Harga Jual: Rp{' '}
           {item.sellingPrice
@@ -65,8 +102,7 @@ export default function RecipeCard({ item, isDark, onPress }: any) {
             : '—'}
         </Text>
 
-        {/* Subtitle: jumlah bahan + kategori */}
-        <View className="flex-row items-center gap-1 mt-1">
+        <View className="flex-row items-center mt-1">
           <Ionicons
             name="pricetag-outline"
             size={12}
@@ -74,16 +110,27 @@ export default function RecipeCard({ item, isDark, onPress }: any) {
           />
           <Text
             numberOfLines={1}
-            className={`text-xs ${
-              isDark ? 'text-gray-400' : 'text-gray-500'
-            }`}
+            className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-xs ml-1`}
           >
-            {`${item.ingredients.length} bahan • ${
-              item.category || 'Tanpa kategori'
-            }`}
+            {`${item.ingredients.length} bahan • ${item.category || 'Tanpa kategori'}`}
           </Text>
         </View>
       </View>
+
+      {loading && (
+        <View
+          className="absolute top-0 left-0 right-0 bottom-0 justify-center items-center rounded-xl"
+          style={{
+            width: cardWidth,
+            backgroundColor: isDark ? 'rgba(31,41,55,0.7)' : 'rgba(255,255,255,0.7)',
+          }}
+        >
+          <ActivityIndicator
+            size="large"
+            color={isDark ? '#0a84ff' : '#204c4b'}
+          />
+        </View>
+      )}
     </TouchableOpacity>
   );
 }

@@ -1,10 +1,9 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import {
   TouchableOpacity,
   View,
   Animated,
   StyleSheet,
-  Easing,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
@@ -17,42 +16,60 @@ type ActionButton = {
 
 export default function FABAdd({
   actions,
-  isFocused = true, // default biar gak error kalau nggak dikirim
+  isFocused = true,
 }: {
   actions: ActionButton[];
   isFocused?: boolean;
 }) {
-
   const [open, setOpen] = useState(false);
   const animation = useRef(new Animated.Value(0)).current;
 
-  const animateTo = (toValue: number) => {
+  // Buka menu
+  const openMenu = () => {
+    setOpen(true);
     Animated.spring(animation, {
-      toValue,
-      friction: 20,
+      toValue: 1,
+      friction: 8,
       useNativeDriver: true,
     }).start();
   };
 
-  const toggleMenu = () => {
-    const toValue = open ? 0 : 1;
-    animateTo(toValue);
-    setOpen(!open);
+  // Tutup menu dengan callback setelah animasi selesai
+  const closeMenu = (callback?: () => void) => {
+    Animated.spring(animation, {
+      toValue: 0,
+      friction: 8,
+      useNativeDriver: true,
+    }).start(() => {
+      // update state di next frame
+      requestAnimationFrame(() => {
+        setOpen(false);
+        if (callback) callback();
+      });
+    });
   };
 
-  useEffect(() => {
+
+  // Toggle menu (buka/tutup)
+  const toggleMenu = () => {
+    if (open) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  };
+
+  // Reset saat screen gak fokus
+  React.useEffect(() => {
     if (!isFocused) {
       animation.setValue(0);
       setOpen(false);
     }
   }, [isFocused]);
 
-  // ✅ Reset FAB saat screen kembali aktif
   useFocusEffect(
     useCallback(() => {
-      // Saat screen difokusin (balik dari halaman lain)
-      animateTo(0);
-      setOpen(false);
+      closeMenu();
     }, [])
   );
 
@@ -62,39 +79,45 @@ export default function FABAdd({
       {open && (
         <TouchableOpacity
           activeOpacity={1}
-          onPress={toggleMenu}
+          onPress={() => closeMenu()}
           style={styles.backdrop}
         />
       )}
 
-      {actions.map((action, index) => {
-        const translateY = animation.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, -(70 * (index + 1))],
-        });
+      {/* Secondary action buttons */}
+      {open &&
+        actions.map((action, index) => {
+          const translateY = animation.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, -(70 * (index + 1))],
+          });
 
-        const animatedStyle = {
-          transform: [{ scale: animation }, { translateY }],
-          opacity: animation,
-          zIndex: actions.length - index,
-        };
+          const animatedStyle = {
+            transform: [{ scale: animation }, { translateY }],
+            opacity: animation,
+            zIndex: actions.length - index,
+          };
 
-        return (
-          <Animated.View
-            key={index}
-            style={[styles.button, styles.secondary, animatedStyle]}
-          >
-            <TouchableOpacity
-              onPress={() => {
-                toggleMenu(); // Tutup setelah klik
-                action.onPress();
-              }}
+          return (
+            <Animated.View
+              key={index}
+              style={[styles.button, styles.secondary, animatedStyle]}
             >
-              <Ionicons name={action.icon} size={24} color="#F2E8DC" />
-            </TouchableOpacity>
-          </Animated.View>
-        );
-      })}
+              <TouchableOpacity
+                onPress={() => {
+                  closeMenu(() => {
+                    setTimeout(() => {
+                      action.onPress(); // baru navigasi
+                    }, 50); // delay kecil, cukup untuk pastikan animasi selesai
+                  });
+                }}
+              >
+                <Ionicons name={action.icon} size={24} color="#F2E8DC" />
+              </TouchableOpacity>
+
+            </Animated.View>
+          );
+        })}
 
       {/* Main FAB */}
       <TouchableOpacity onPress={toggleMenu} style={[styles.button, styles.main]}>

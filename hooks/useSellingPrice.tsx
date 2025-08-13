@@ -11,6 +11,7 @@ export function useSellingPrice(originalRecipe?: Recipe) {
   const [margin, setMargin] = useState(originalRecipe?.margin ?? 60);
   const [manualPrice, setManualPrice] = useState(originalRecipe?.sellingPrice?.toString() || '');
   const [saving, setSaving] = useState(false);
+  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // 🔥 Inject ulang cost real-time
   const ingredientsMap = useMemo(() => {
@@ -41,6 +42,37 @@ export function useSellingPrice(originalRecipe?: Recipe) {
     return Math.round(hpp + (hpp * margin) / 100);
   }, [hpp, margin]);
 
+   useEffect(() => {
+    if (!originalRecipe) return;
+
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+
+    if (!manualPrice) return;
+
+    const priceNum = parseInt(manualPrice);
+    if (isNaN(priceNum) || priceNum <= 0) return;
+
+    saveTimeout.current = setTimeout(async () => {
+      setSaving(true);
+      try {
+        await editRecipe(originalRecipe.id, {
+          ...originalRecipe,
+          sellingPrice: priceNum,
+          margin,
+        });
+      } catch (error) {
+        Alert.alert('Error', 'Gagal menyimpan harga jual');
+      } finally {
+        setSaving(false);
+      }
+    }, 1000);
+
+    return () => {
+      if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    };
+  }, [manualPrice, margin, originalRecipe, editRecipe]);
+
+  // kalau mau, handleSaveManualPrice tetap dipakai sebagai backup manual save
   const handleSaveManualPrice = async () => {
     if (!originalRecipe) return;
 
@@ -51,15 +83,18 @@ export function useSellingPrice(originalRecipe?: Recipe) {
     }
 
     setSaving(true);
-
-    await editRecipe(originalRecipe.id, {
-      ...originalRecipe,
-      sellingPrice: priceNum,
-      margin,
-    });
-
-    setSaving(false);
-    Alert.alert('Berhasil', 'Harga jual berhasil diperbarui');
+    try {
+      await editRecipe(originalRecipe.id, {
+        ...originalRecipe,
+        sellingPrice: priceNum,
+        margin,
+      });
+      Alert.alert('Berhasil', 'Harga jual berhasil diperbarui');
+    } catch (error) {
+      Alert.alert('Error', 'Gagal menyimpan harga jual');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return {
@@ -70,8 +105,10 @@ export function useSellingPrice(originalRecipe?: Recipe) {
     setManualPrice,
     saving,
     handleSaveManualPrice,
-    finalPrice: originalRecipe?.sellingPrice || displayedPrice,
-    isManual: !!originalRecipe?.sellingPrice,
+    finalPrice: originalRecipe?.sellingPrice != null && originalRecipe.sellingPrice > 0
+      ? originalRecipe.sellingPrice
+      : 0,
+    isManual: originalRecipe?.sellingPrice != null && originalRecipe.sellingPrice > 0,
     hpp,
   };
 }

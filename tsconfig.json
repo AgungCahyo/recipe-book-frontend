@@ -14,6 +14,6 @@
     "types",
     "app",
     "config",
-    "nativewind-env.d.ts", "utils", "utils", "_layout.tsx", "app/ingredientsPage/index.tsx", "app/Welcome",
+    "nativewind-env.d.ts", "utils", "utils", "_layout.tsx", "app/main/ingredients/index.tsx", "app/Welcome",
   ]
 }

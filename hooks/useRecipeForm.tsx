@@ -10,6 +10,7 @@ import { useRecipeIngredients } from './useRecipeIngredients';
 import { useRecipeSteps } from './useRecipeSteps';
 import { useRecipeMetadata } from './useRecipeMetaData';
 
+// Optimized comparison functions
 function shallowEqualArray(arr1: any[], arr2: any[]) {
   if (arr1.length !== arr2.length) return false;
   for (let i = 0; i < arr1.length; i++) {
@@ -18,8 +19,17 @@ function shallowEqualArray(arr1: any[], arr2: any[]) {
   return true;
 }
 
+// Memoized string generator for better performance
+const createIngredientsSignature = (ingredients: any[]) => 
+  ingredients.map(i => `${i.id}-${i.name}-${i.unit}-${i.pricePerUnit}`).join('|||');
+
+const createStepsSignature = (steps: string[]) => 
+  steps.join('|||');
+
+const createImageSignature = (imageUris: any[]) => 
+  imageUris.map(i => i.uri).join('|||');
+
 export function useRecipeForm(id?: string) {
-  console.log('useRecipeForm called with id:', id);
   const router = useRouter();
   const { showAlert } = useAlert();
   const { recipes, addRecipe, editRecipe } = useRecipes();
@@ -27,19 +37,25 @@ export function useRecipeForm(id?: string) {
   const { draft, updateDraft, clearDraft } = useDraftRecipe();
 
   const editing = !!id;
-  const existingRecipe = recipes.find((r) => r.id === id);
+  const existingRecipe = useMemo(() => 
+    recipes.find((r) => r.id === id),
+    [recipes, id]
+  );
 
-  // Reset draft saat buka form baru - FIX: Add dependency array
+  // Optimized: Memoize expensive signature calculations
+  const ingredientsSignature = useMemo(() => 
+    createIngredientsSignature(ingredients), 
+    [ingredients]
+  );
+
+  // Reset draft saat buka form baru
   useEffect(() => {
-    console.log('[useEffect] clearDraft triggered, editing:', editing);
     if (!editing) clearDraft();
-    console.log('[clearDraft] draft cleared');
-  }, [editing]); // Removed clearDraft from dependencies
+  }, [editing, clearDraft]);
 
+  // Optimized recipeData calculation
   const recipeData = useMemo(() => {
-    console.log('[useMemo] Computing recipeData');
     if (editing && existingRecipe) {
-      console.log('[useMemo] Editing mode, existingRecipe found:', existingRecipe.id);
       return {
         title: existingRecipe.title,
         steps: existingRecipe.description?.split('\n') || [''],
@@ -53,7 +69,6 @@ export function useRecipeForm(id?: string) {
         margin: existingRecipe.margin ?? undefined,
       };
     }
-    console.log('[useMemo] New recipe mode, using draft');
     return {
       ...draft,
       imageUris: (draft.imageUris || []).map((uri) => ({
@@ -61,7 +76,22 @@ export function useRecipeForm(id?: string) {
         status: 'done' as const,
       })),
     };
-  }, [editing, existingRecipe?.id, existingRecipe?.title, existingRecipe?.description, existingRecipe?.category, existingRecipe?.sellingPrice, existingRecipe?.margin, JSON.stringify(existingRecipe?.imageUris), JSON.stringify(existingRecipe?.ingredients), JSON.stringify(draft)]);
+  }, [
+    editing,
+    existingRecipe?.id,
+    existingRecipe?.title,
+    existingRecipe?.description,
+    existingRecipe?.category,
+    existingRecipe?.sellingPrice,
+    existingRecipe?.margin,
+    // Use memoized signatures instead of JSON.stringify
+    existingRecipe ? createImageSignature(existingRecipe.imageUris || []) : '',
+    existingRecipe ? createIngredientsSignature(existingRecipe.ingredients || []) : '',
+    // For draft, we need to be more careful
+    Object.keys(draft).join('-') + Object.values(draft).map(v => 
+      Array.isArray(v) ? v.length : String(v)
+    ).join('-')
+  ]);
 
   const {
     ingredientName,
@@ -112,27 +142,28 @@ export function useRecipeForm(id?: string) {
 
   const prevDraftRef = useRef(draft);
 
-  // FIX: Stabilize arrays dengan cara yang lebih efisien
-  const stableSteps = useMemo(() => {
-    return [...steps];
-  }, [steps.length, steps.join('|||')]); // Use delimiter that's unlikely to appear in content
+  // Optimized: More efficient array stabilization
+  const stepsSignature = useMemo(() => 
+    createStepsSignature(steps), 
+    [steps]
+  );
 
-  const stableIngredientsList = useMemo(() => {
-    return [...ingredientsList];
-  }, [
-    ingredientsList.length,
-    ingredients.map(i => `${i.id}-${i.name}-${i.unit}-${i.pricePerUnit}`).join('|||')
+  const ingredientsListSignature = useMemo(() => 
+    createIngredientsSignature(ingredientsList), 
+    [ingredientsList]
+  );
 
-  ]);
+  const imageUrisSignature = useMemo(() => 
+    createImageSignature(imageUris), 
+    [imageUris]
+  );
 
-  const stableImageUris = useMemo(() => {
-    return imageUris.map(i => i.uri);
-  }, [
-    imageUris.length,
-    imageUris.map(i => i.uri).join('|||')
-  ]);
+  // Stable arrays using signatures for comparison
+  const stableSteps = useMemo(() => [...steps], [stepsSignature]);
+  const stableIngredientsList = useMemo(() => [...ingredientsList], [ingredientsListSignature]);
+  const stableImageUris = useMemo(() => imageUris.map(i => i.uri), [imageUrisSignature]);
 
-  // FIX: Stabilize draft snapshot dengan useMemo yang lebih baik
+  // Optimized draft snapshot
   const draftSnapshot = useMemo(() => ({
     title: title || '',
     steps: stableSteps,
@@ -141,79 +172,90 @@ export function useRecipeForm(id?: string) {
     category: category || '',
   }), [title, stableSteps, stableIngredientsList, stableImageUris, category]);
 
-  // FIX: Use useCallback untuk updateDraft agar stabil
+  // Stable updateDraft - Remove if updateDraft is already stable
   const stableUpdateDraft = useCallback((data: any) => {
     updateDraft(data);
-  }, []); // Empty dependency - updateDraft should be stable from context
+  }, [updateDraft]);
 
-  // FIX: Draft saving effect with better comparison
+  // Optimized draft saving effect
   useEffect(() => {
-    if (editing) return; // don't save draft when editing existing
+    if (editing) return;
 
     const prev = prevDraftRef.current;
+    
+    // More efficient comparison using direct property checks
+    const hasChanged = (
+      (prev.title || '') !== (draftSnapshot.title || '') ||
+      prev.steps?.length !== draftSnapshot.steps?.length ||
+      prev.ingredients?.length !== draftSnapshot.ingredients?.length ||
+      prev.imageUris?.length !== draftSnapshot.imageUris?.length ||
+      (prev.category || '') !== (draftSnapshot.category || '') ||
+      // Only do deep comparison if lengths match but content might differ
+      (prev.steps?.length === draftSnapshot.steps?.length && 
+       !shallowEqualArray(prev.steps || [], draftSnapshot.steps || [])) ||
+      (prev.ingredients?.length === draftSnapshot.ingredients?.length && 
+       !shallowEqualArray(prev.ingredients || [], draftSnapshot.ingredients || [])) ||
+      (prev.imageUris?.length === draftSnapshot.imageUris?.length && 
+       !shallowEqualArray(prev.imageUris || [], draftSnapshot.imageUris || []))
+    );
 
-    const isSame =
-      (prev.title || '') === (draftSnapshot.title || '') &&
-      shallowEqualArray(prev.steps || [], draftSnapshot.steps || []) &&
-      shallowEqualArray(prev.ingredients || [], draftSnapshot.ingredients || []) &&
-      shallowEqualArray(prev.imageUris || [], draftSnapshot.imageUris || []) &&
-      (prev.category || '') === (draftSnapshot.category || '');
-
-    if (!isSame) {
+    if (hasChanged) {
       stableUpdateDraft(draftSnapshot);
       prevDraftRef.current = draftSnapshot;
     }
   }, [draftSnapshot, editing, stableUpdateDraft]);
 
-  // FIX: Sync ingredients with better dependency management
+  // Optimized ingredients sync
   useEffect(() => {
     if (!editing || !existingRecipe) return;
 
     setIngredientsList((prevIngredientsList) => {
-      let changed = false;
-      const synced = prevIngredientsList.map((item) => {
-        const latest = ingredients.find((i) => i.id === item.ingredientId);
-        if (!latest) return item;
+      let hasChanges = false;
+      const syncedIngredients = prevIngredientsList.map((item) => {
+        const currentIngredient = ingredients.find((i) => i.id === item.ingredientId);
+        
+        if (!currentIngredient) return item;
 
-        const updatedCost = parseFloat((latest.pricePerUnit * item.quantity).toFixed(2));
+        const newCost = parseFloat((currentIngredient.pricePerUnit * item.quantity).toFixed(2));
+        const needsUpdate = (
+          item.name !== currentIngredient.name ||
+          item.unit !== currentIngredient.unit ||
+          Math.abs(item.cost - newCost) > 0.001 // Handle floating point precision
+        );
 
-        if (
-          item.name !== latest.name ||
-          item.unit !== latest.unit ||
-          item.cost !== updatedCost
-        ) {
-          changed = true;
+        if (needsUpdate) {
+          hasChanges = true;
           return {
             ...item,
-            name: latest.name,
-            unit: latest.unit,
-            cost: updatedCost,
+            name: currentIngredient.name,
+            unit: currentIngredient.unit,
+            cost: newCost,
           };
         }
+
         return item;
       });
 
-      return changed ? synced : prevIngredientsList;
+      return hasChanges ? syncedIngredients : prevIngredientsList;
     });
   }, [
     editing,
-    existingRecipe?.id, // Only depend on ID, not the whole object
-    ingredients.length, // Track ingredients changes more efficiently
-    ingredients.map(i => `${i.id}-${i.name}-${i.unit}-${i.pricePerUnit}`).join('|||')
+    existingRecipe?.id,
+    ingredientsSignature, // Use memoized signature instead of recreating
+    setIngredientsList
+  ]);
 
-  ]); // Removed setIngredientsList from dependencies
-
+  // Memoized calculations
   const calculateTotalHPP = useCallback(() => {
     return ingredientsList.reduce((total, item) => total + (item.cost || 0), 0);
   }, [ingredientsList]);
 
-  const handleSave = useCallback(async () => {
-    const cleanedSteps = steps.filter((s) => s.trim() !== '');
+  // Optimized validation
+  const validateForm = useCallback(() => {
     const normalizedTitle = title.trim().toLowerCase();
-
+    
     if (!normalizedTitle) {
-      showAlert('Judul resep tidak boleh kosong.', 'error');
-      return;
+      return { isValid: false, message: 'Judul resep tidak boleh kosong.' };
     }
 
     const isDuplicateTitle = recipes.some((r) => {
@@ -222,23 +264,32 @@ export function useRecipeForm(id?: string) {
     });
 
     if (isDuplicateTitle) {
-      showAlert('Judul resep sudah digunakan. Gunakan nama lain.', 'error');
-      return;
+      return { isValid: false, message: 'Judul resep sudah digunakan. Gunakan nama lain.' };
     }
 
     if (ingredientsList.length === 0) {
-      showAlert('Tambahkan minimal satu bahan.', 'error');
+      return { isValid: false, message: 'Tambahkan minimal satu bahan.' };
+    }
+
+    return { isValid: true };
+  }, [title, recipes, editing, existingRecipe?.id, ingredientsList.length]);
+
+  const handleSave = useCallback(async () => {
+    const validation = validateForm();
+    
+    if (!validation.isValid) {
+      showAlert(validation.message!, 'error');
       return;
     }
 
-    const data = {
+    const cleanedSteps = steps.filter((s) => s.trim() !== '');
+    const recipeData = {
       title: title.trim(),
       description: cleanedSteps.join('\n'),
       ingredients: ingredientsList,
       imageUris: imageUris.map((i) => i.uri),
       category: category.trim(),
       hpp: parseFloat(calculateTotalHPP().toFixed(2)),
-
       ...(editing && existingRecipe?.sellingPrice !== undefined && {
         sellingPrice: existingRecipe.sellingPrice,
       }),
@@ -247,29 +298,31 @@ export function useRecipeForm(id?: string) {
       }),
     };
 
-    if (editing && existingRecipe) {
-      await editRecipe(existingRecipe.id, data);
+    try {
+      if (editing && existingRecipe) {
+        await editRecipe(existingRecipe.id, recipeData);
+        showAlert('Resep diperbarui.', 'success');
+        router.back();
+      } else {
+        const newId = await addRecipe(recipeData);
+        showAlert('Resep berhasil ditambahkan.', 'success');
+        router.replace(`/main/recipes/${newId}`);
+      }
       clearDraft();
-      showAlert('Resep diperbarui.', 'success');
-      router.back();
-    } else {
-      const newId = await addRecipe(data);
-      clearDraft();
-      showAlert('Resep berhasil ditambahkan.', 'success');
-      router.replace(`recipes/${newId}`);
+    } catch (error) {
+      showAlert('Terjadi kesalahan saat menyimpan resep.', 'error');
+      console.error('Save recipe error:', error);
     }
   }, [
+    validateForm,
     steps,
     title,
     ingredientsList,
     imageUris,
     category,
     calculateTotalHPP,
-    recipes,
     editing,
-    existingRecipe?.id,
-    existingRecipe?.sellingPrice,
-    existingRecipe?.margin,
+    existingRecipe,
     editRecipe,
     addRecipe,
     clearDraft,
@@ -278,12 +331,17 @@ export function useRecipeForm(id?: string) {
   ]);
 
   return {
+    // Form state
     title,
     setTitle,
     steps,
     updateStep,
     addStep,
     removeStep,
+    category,
+    setCategory,
+    
+    // Ingredients
     ingredientsList,
     ingredientName,
     setIngredientName,
@@ -295,15 +353,19 @@ export function useRecipeForm(id?: string) {
     removeIngredient,
     editIngredientId,
     setEditIngredientId,
+    setIngredientsList,
+    
+    
+    // Images
     imageUris,
     setImageUris,
-    category,
-    setCategory,
-    calculateTotalHPP,
-    handleSave,
-    editing,
     pickImage,
     isUploading,
-    setIngredientsList,
+    
+    // Actions & utilities
+    calculateTotalHPP,
+    handleSave,
+    validateForm,
+    editing,
   };
 }

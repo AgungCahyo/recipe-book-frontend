@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "512167328296",
+    "project_id": "hppmaster-75408",
+    "storage_bucket": "hppmaster-75408.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:512167328296:android:750e33c9798a8af058931d",
+        "android_client_info": {
+          "package_name": "com.hpp.master"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "512167328296-ecdi6sthv937vg2ba0qvinl583au312o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hpp.master",
+            "certificate_hash": "609237c7d920288bd2de17e7a67e079153c7131f"
+          }
+        },
+        {
+          "client_id": "512167328296-uko2aqhtla7n0hpoagvjg7va3gb9h1t7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0E0_oQi8UR_gN4xm8YjWc6M07ZCllzuk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "512167328296-uko2aqhtla7n0hpoagvjg7va3gb9h1t7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
