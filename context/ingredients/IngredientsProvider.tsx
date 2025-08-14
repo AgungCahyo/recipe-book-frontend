@@ -1,11 +1,27 @@
-//context/ingredients/IngredientsProvider.tsx
-
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import React, {
+  createContext, useContext, useEffect, useState, useMemo, useCallback,
+} from 'react';
 import uuid from 'react-native-uuid';
-import { useAlert } from '../AlertContext';
+import { db, serverTimestamp } from '../../firebase/config'; // nanti ini modular
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  writeBatch,
+  onSnapshot,
+} from 'firebase/firestore';
+
 import { satuanList } from './constant';
-import { loadIngredients, saveIngredients } from './utils/storage';
-import { parseIngredientFromCSV } from './utils/parsers';
+import showToast from 'utils/showToast';
+import { useAuth } from 'context/AuthContext';
+import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+
 
 export type Ingredient = {
   id: string;
@@ -14,6 +30,9 @@ export type Ingredient = {
   quantity: number;
   totalPrice: number;
   pricePerUnit: number;
+  userId: string;
+  createdAt?: FirebaseFirestoreTypes.Timestamp | null;
+  updatedAt?: FirebaseFirestoreTypes.Timestamp | null;
 };
 
 type IngredientInput = {
@@ -25,468 +44,389 @@ type IngredientInput = {
 
 type IngredientContextType = {
   isEditing: boolean;
-  setIsEditing: (val: boolean) => void;
+  setIsEditing: (v: boolean) => void;
   idBeingEdited: string | null;
-  setIdBeingEdited: (val: string | null) => void;
+  setIdBeingEdited: (v: string | null) => void;
   ingredients: Ingredient[];
   handleSubmit: (input: IngredientInput) => void;
   removeIngredient: (id: string) => void;
   editIngredient: (id: string) => void;
   satuanList: string[];
   isFormModalVisible: boolean;
-  setIsFormModalVisible: (val: boolean) => void;
+  setIsFormModalVisible: (v: boolean) => void;
   resetForm: () => void;
   clearAllIngredients: () => void;
   addIngredient: (item: Ingredient) => void;
   reloadIngredients: () => void;
-  addIngredientFromCSV: (item: {
-    name: string;
-    quantity: string;
-    totalPrice: string;
-    unit: string;
-  }) => void;
+  addIngredientFromCSV: (raw: { name: string; quantity: string; totalPrice: string; unit: string }) => void;
   removeManyIngredients: (ids: string[]) => void;
   addManyIngredients: (items: Ingredient[]) => void;
-  parseIngredientFromCSV: typeof parseIngredientFromCSV;
+  parseIngredientFromCSV: (raw: { name: string; quantity: string; totalPrice: string; unit: string }) => Ingredient | null;
   getIngredientById: (id: string) => Ingredient | undefined;
   getIngredientByName: (name: string) => Ingredient | undefined;
 };
 
+
+
 export const IngredientsContext = createContext<IngredientContextType | null>(null);
 
 export function IngredientsProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const uid = user?.uid ?? '';
+
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [idBeingEdited, setIdBeingEdited] = useState<string | null>(null);
   const [isFormModalVisible, setIsFormModalVisible] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  const { showAlert } = useAlert();
+  
+ const parseIngredientFromCSV = useCallback((raw:any) => {
+  try {
+    const quantity = Number(raw.quantity);
+    const totalPrice = Number(raw.totalPrice);
+    const name = raw.name?.trim() ?? '';
+    const unit = raw.unit?.trim() ?? '';
 
-  // OPTIMASI 1: Use refs for debouncing and preventing unnecessary saves
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSavedRef = useRef<string>('');
+    if (!name || !unit || isNaN(quantity) || isNaN(totalPrice) || quantity <= 0 || totalPrice <= 0) {
+      console.warn('CSV invalid:', raw); // <-- log di sini
+      return null;
+    }
 
-  // OPTIMASI 2: Stable callback functions with proper dependencies
+    if (!satuanList.includes(unit)) {
+      console.warn('Unit tidak valid:', raw);
+      return null;
+    }
+
+    if (!uid) {
+      console.warn('UID tidak ada, skip:', raw);
+      return null;
+    }
+
+    return {
+      id: uuid.v4() as string,
+      name,
+      unit,
+      quantity,
+      totalPrice,
+      pricePerUnit: totalPrice / quantity,
+      userId: uid,
+    } as Ingredient;
+  } catch (e) {
+    console.error('Error parsing CSV item:', raw, e);
+    return null;
+  }
+}, [uid]);
+
+
   const resetForm = useCallback(() => {
     setIsEditing(false);
     setIdBeingEdited(null);
     setIsFormModalVisible(false);
   }, []);
 
-  const handleSubmit = useCallback(({ name, quantity, totalPrice, unit }: IngredientInput) => {
+  const handleSubmit = useCallback(async ({ name, quantity, totalPrice, unit }: IngredientInput) => {
+    if (!uid) return;
+
     const trimmedName = name.trim();
-    if (!trimmedName || quantity <= 0 || totalPrice <= 0 || !unit.trim()) {
-      showAlert('Semua field harus diisi dengan benar', 'error');
-      return;
+    const unitTrim = unit.trim();
+
+    if (!trimmedName || quantity <= 0 || totalPrice <= 0 || !unitTrim) {
+      showToast('Semua field harus diisi dengan benar', 'error'); return;
+    }
+    if (!satuanList.includes(unitTrim)) {
+      showToast('Satuan tidak valid', 'error'); return;
     }
 
-    const pricePerUnit = parseFloat((totalPrice / quantity).toFixed(2));
+    const pricePerUnit = totalPrice / quantity;
 
-    if (isEditing && idBeingEdited) {
-      // OPTIMASI 3: More efficient update - only update if actually changed
-      setIngredients((prev) => {
-        const existingItem = prev.find(item => item.id === idBeingEdited);
-        if (existingItem && 
-            existingItem.name === trimmedName &&
-            existingItem.unit === unit &&
-            existingItem.quantity === quantity &&
-            existingItem.totalPrice === totalPrice) {
-          return prev; // No change, return same array
+    try {
+      if (isEditing && idBeingEdited) {
+        await db.collection('ingredients').doc(idBeingEdited).update({
+          name: trimmedName,
+          unit: unitTrim,
+          quantity,
+          totalPrice,
+          pricePerUnit,
+          updatedAt: serverTimestamp(),
+        });
+
+        setIngredients(prev => prev.map(it =>
+          it.id === idBeingEdited ? { ...it, name: trimmedName, unit: unitTrim, quantity, totalPrice, pricePerUnit } : it
+        ));
+        showToast('Perubahan disimpan', 'success');
+      } else {
+        const dup = await db.collection('ingredients')
+          .where('userId', '==', uid)
+          .where('name', '==', trimmedName)
+          .limit(1).get();
+
+        if (!dup.empty) {
+          showToast('Bahan dengan nama tersebut sudah ada', 'warning'); return;
         }
-        
-        return prev.map((item) =>
-          item.id === idBeingEdited
-            ? { ...item, name: trimmedName, unit, quantity, totalPrice, pricePerUnit }
-            : item
-        );
-      });
-      showAlert('Perubahan disimpan', 'success');
-    } else {
-      // OPTIMASI 4: Check for duplicates before adding
-      const normalizedName = trimmedName.toLowerCase();
-      const isDuplicate = ingredients.some(item => 
-        item.name.toLowerCase() === normalizedName
-      );
-      
-      if (isDuplicate) {
-        showAlert('Bahan dengan nama tersebut sudah ada', 'warning');
-        return;
+
+        const id = uuid.v4() as string;
+        const docData: Ingredient = {
+          id,
+          name: trimmedName,
+          unit: unitTrim,
+          quantity,
+          totalPrice,
+          pricePerUnit,
+          userId: uid,
+        };
+
+        await db.collection('ingredients').doc(id).set({
+          ...docData,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        setIngredients(prev => [...prev, docData]);
+        showToast('Bahan berhasil ditambahkan', 'success');
       }
 
-      const newId = uuid.v4() as string;
-      const newIngredient: Ingredient = {
-        id: newId,
-        name: trimmedName,
-        unit,
-        quantity,
-        totalPrice,
-        pricePerUnit
-      };
-      
-      setIngredients((prev) => [...prev, newIngredient]);
-      showAlert('Bahan berhasil ditambahkan', 'success');
+      resetForm();
+    } catch (e) {
+      console.error('Error saving ingredient:', e);
+      showToast('Gagal menyimpan bahan', 'error');
     }
+  }, [uid, isEditing, idBeingEdited, resetForm]);
 
-    resetForm();
-  }, [isEditing, idBeingEdited, ingredients, resetForm, showAlert]);
-
-  const removeIngredient = useCallback((id: string) => {
-    setIngredients((prev) => {
-      const filtered = prev.filter((item) => item.id !== id);
-      if (filtered.length === prev.length) {
-        // Item not found, no change needed
-        return prev;
-      }
-      return filtered;
-    });
-    showAlert('Bahan dihapus', 'success');
-  }, [showAlert]);
+  const removeIngredient = useCallback(async (id: string) => {
+    try {
+      await db.collection('ingredients').doc(id).delete();
+      setIngredients(prev => prev.filter(it => it.id !== id));
+      showToast('Bahan dihapus', 'success');
+    } catch (e) {
+      console.error('Error removing ingredient:', e);
+      showToast('Gagal menghapus bahan', 'error');
+    }
+  }, []);
 
   const editIngredient = useCallback((id: string) => {
-    // OPTIMASI 5: Validate item exists before editing
-    const itemExists = ingredients.some(item => item.id === id);
-    if (!itemExists) {
-      showAlert('Bahan tidak ditemukan', 'error');
-      return;
+    if (!ingredients.some(it => it.id === id)) {
+      showToast('Bahan tidak ditemukan', 'error'); return;
     }
-    
     setIsEditing(true);
     setIdBeingEdited(id);
     setIsFormModalVisible(true);
-  }, [ingredients, showAlert]);
-
-  const clearAllIngredients = useCallback(async () => {
-    try {
-      if (ingredients.length === 0) {
-        showAlert('Tidak ada data untuk dihapus', 'warning');
-        return;
-      }
-      
-      setIngredients([]);
-      showAlert('Semua data bahan dihapus', 'success');
-    } catch (error) {
-      showAlert('Gagal menghapus semua bahan', 'error');
-    }
-  }, [ingredients.length, showAlert]);
-
-  const addIngredient = useCallback((item: Ingredient) => {
-    // OPTIMASI 6: Validate item before adding
-    if (!item.id || !item.name?.trim()) {
-      console.warn('Invalid ingredient:', item);
-      return;
-    }
-    
-    setIngredients((prev) => {
-      // Check if already exists
-      if (prev.some(existing => existing.id === item.id)) {
-        return prev;
-      }
-      return [...prev, item];
-    });
-  }, []);
-
-  const addIngredientFromCSV = useCallback((item: { 
-    name: string; 
-    quantity: string; 
-    totalPrice: string; 
-    unit: string 
-  }) => {
-    const parsed = parseIngredientFromCSV(item);
-    if (parsed) {
-      addIngredient(parsed);
-    }
-  }, [addIngredient]);
-
-  // OPTIMASI 7: More efficient bulk operations with validation
-  const removeManyIngredients = useCallback((ids: string[]) => {
-    if (ids.length === 0) return;
-    
-    const idsSet = new Set(ids);
-    let removedCount = 0;
-    
-    setIngredients((prev) => {
-      const filtered = prev.filter((item) => {
-        const shouldRemove = idsSet.has(item.id);
-        if (shouldRemove) removedCount++;
-        return !shouldRemove;
-      });
-      
-      return filtered;
-    });
-    
-    if (removedCount > 0) {
-      showAlert(`${removedCount} bahan dihapus`, 'success');
-    } else {
-      showAlert('Tidak ada bahan yang dihapus', 'warning');
-    }
-  }, [showAlert]);
-
-  const addManyIngredients = useCallback((items: Ingredient[]) => {
-    if (items.length === 0) return;
-    
-    // OPTIMASI 8: Validate and deduplicate items
-    const validItems = items.filter(item => 
-      item.id && item.name?.trim() && item.quantity > 0 && item.totalPrice > 0
-    );
-    
-    if (validItems.length === 0) {
-      showAlert('Tidak ada bahan valid untuk ditambahkan', 'warning');
-      return;
-    }
-    
-    setIngredients((prev) => {
-      // Create set of existing IDs for faster lookup
-      const existingIds = new Set(prev.map(item => item.id));
-      const existingNames = new Set(prev.map(item => item.name.toLowerCase().trim()));
-      
-      // Filter out duplicates
-      const newItems = validItems.filter(item => 
-        !existingIds.has(item.id) && 
-        !existingNames.has(item.name.toLowerCase().trim())
-      );
-      
-      if (newItems.length === 0) {
-        return prev; // No new items to add
-      }
-      
-      return [...prev, ...newItems];
-    });
-    
-    showAlert(`${validItems.length} bahan ditambahkan`, 'success');
-  }, [showAlert]);
-
-  const reloadIngredients = useCallback(async () => {
-    try {
-      const loaded = await loadIngredients();
-      setIngredients(loaded);
-      setIsInitialized(true);
-    } catch (error) {
-      console.error('Gagal load bahan:', error);
-      setIngredients([]);
-      setIsInitialized(true);
-    }
-  }, []);
-
-  // OPTIMASI 9: Add getter functions with Map-based lookup for better performance
-  const ingredientsMap = useMemo(() => {
-    const idMap = new Map<string, Ingredient>();
-    const nameMap = new Map<string, Ingredient>();
-    
-    ingredients.forEach(ingredient => {
-      idMap.set(ingredient.id, ingredient);
-      nameMap.set(ingredient.name.toLowerCase().trim(), ingredient);
-    });
-    
-    return { idMap, nameMap };
   }, [ingredients]);
 
-  const getIngredientById = useCallback((id: string) => {
-    return ingredientsMap.idMap.get(id);
-  }, [ingredientsMap.idMap]);
+  const chunkCommit = useCallback(async (ids: string[]) => {
+    for (let i = 0; i < ids.length; i += 500) {
+      const batch = db.batch();
+      ids.slice(i, i + 500).forEach(id => batch.delete(db.collection('ingredients').doc(id)));
+      await batch.commit();
+    }
+  }, []);
 
-  const getIngredientByName = useCallback((name: string) => {
-    return ingredientsMap.nameMap.get(name.toLowerCase().trim());
-  }, [ingredientsMap.nameMap]);
+  const clearAllIngredients = useCallback(async () => {
+    if (ingredients.length === 0) {
+      showToast('Tidak ada data untuk dihapus', 'warning'); return;
+    }
+    try {
+      await chunkCommit(ingredients.map(it => it.id));
+      setIngredients([]);
+      showToast('Semua data bahan dihapus', 'success');
+    } catch (e) {
+      console.error('Error clearing all ingredients:', e);
+      showToast('Gagal menghapus semua bahan', 'error');
+    }
+  }, [ingredients, chunkCommit]);
 
-  // Load on mount
+  const addIngredient = useCallback(async (item: Ingredient) => {
+    if (!uid || !item?.id || !item.name?.trim()) return;
+
+    const doc = {
+      ...item,
+      userId: uid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    try {
+      await db.collection('ingredients').doc(item.id).set(doc);
+      setIngredients(prev => prev.some(x => x.id === item.id) ? prev : [...prev, item]);
+    } catch (e) {
+      console.error('Error adding ingredient:', e);
+      showToast('Gagal menambahkan bahan', 'error');
+    }
+  }, [uid]);
+
+const addIngredientFromCSV = useCallback((raw: {
+  name: string;
+  quantity: string;
+  totalPrice: string;
+  unit: string;
+}) => {
+  const parsed = parseIngredientFromCSV(raw);
+  if (parsed) addIngredient(parsed);
+}, [addIngredient, parseIngredientFromCSV]);
+
+
+  const removeManyIngredients = useCallback(async (ids: string[]) => {
+    if (!ids?.length) return;
+    try {
+      await chunkCommit(ids);
+      setIngredients(prev => prev.filter(it => !ids.includes(it.id)));
+      showToast(`${ids.length} bahan dihapus`, 'success');
+    } catch (e) {
+      console.error('Error removing multiple ingredients:', e);
+      showToast('Gagal menghapus bahan', 'error');
+    }
+  }, [chunkCommit]);
+
+  const addManyIngredients = useCallback(async (items: Ingredient[]) => {
+  if (!items?.length || !uid) return;
+
+  const failedItems: Ingredient[] = [];
+
+  const valid = items.filter(it => {
+    const isValid = it.id && it.name?.trim() && it.quantity > 0 && it.totalPrice > 0;
+    if (!isValid) failedItems.push(it);
+    return isValid;
+  });
+
+  if (!valid.length) {
+    showToast('Tidak ada bahan valid untuk ditambahkan', 'warning'); 
+    console.log('Failed items:', failedItems);
+    return;
+  }
+
+  try {
+    for (let i = 0; i < valid.length; i += 500) {
+      const batch = db.batch();
+      valid.slice(i, i + 500).forEach(it => {
+        const ref = db.collection('ingredients').doc(it.id);
+        batch.set(ref, {
+          ...it,
+          userId: uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      });
+      await batch.commit();
+    }
+
+    setIngredients(prev => {
+      const ids = new Set(prev.map(p => p.id));
+      const names = new Set(prev.map(p => p.name.toLowerCase().trim()));
+      const newOnes = valid.filter(it => !ids.has(it.id) && !names.has(it.name.toLowerCase().trim()));
+      return newOnes.length ? [...prev, ...newOnes] : prev;
+    });
+
+    showToast(`${valid.length} bahan ditambahkan`, 'success');
+
+    if (failedItems.length) {
+      console.warn('Bahan gagal diimport:', failedItems);
+    }
+  } catch (e) {
+    console.error('Error adding multiple ingredients:', e);
+    showToast('Gagal menambahkan bahan', 'error');
+  }
+}, [uid]);
+
+
+  const reloadIngredients = useCallback(async () => {
+    if (!uid) return;
+    try {
+      const snap = await db.collection('ingredients')
+        .where('userId', '==', uid)
+        .orderBy('createdAt', 'desc')
+        .get();
+
+      const loaded: Ingredient[] = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      setIngredients(loaded);
+      setIsInitialized(true);
+    } catch (e) {
+      console.error('Gagal load bahan:', e);
+      setIngredients([]);
+      setIsInitialized(true);
+    }
+  }, [uid]);
+
   useEffect(() => {
     reloadIngredients();
   }, [reloadIngredients]);
 
-  // OPTIMASI 10: Improved auto-save with better debouncing
   useEffect(() => {
-    if (!isInitialized || ingredients.length < 0) return;
+    if (!uid || !isInitialized) return;
+    const unsubscribe = db.collection('ingredients')
+      .where('userId', '==', uid)
+      .orderBy('updatedAt', 'desc')
+      .onSnapshot((snapshot) => {
+        setIngredients(prev => {
+          let next = [...prev];
+          snapshot.docChanges().forEach(change => {
+            const id = change.doc.id;
+            const data = change.doc.data() as any;
+            if (change.type === 'added' || change.type === 'modified') {
+              const idx = next.findIndex(x => x.id === id);
+              const item = { id, ...data } as Ingredient;
+              if (idx >= 0) next[idx] = item; else next.push(item);
+            } else if (change.type === 'removed') {
+              next = next.filter(x => x.id !== id);
+            }
+          });
+          return next;
+        });
+      }, (err) => {
+        console.error('Listener error:', err);
+      });
 
-    // Create a stable string representation for comparison
-    const ingredientsString = JSON.stringify(ingredients);
-    
-    // Skip save if data hasn't actually changed
-    if (ingredientsString === lastSavedRef.current) {
-      return;
-    }
+    return () => unsubscribe();
+  }, [uid, isInitialized]);
 
-    // Clear existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
+  const ingredientsMap = useMemo(() => {
+    const idMap = new Map<string, Ingredient>();
+    const nameMap = new Map<string, Ingredient>();
+    ingredients.forEach(it => {
+      idMap.set(it.id, it);
+      nameMap.set(it.name.toLowerCase().trim(), it);
+    });
+    return { idMap, nameMap };
+  }, [ingredients]);
 
-    // OPTIMASI 11: Longer debounce for better performance (1 second)
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        await saveIngredients(ingredients);
-        lastSavedRef.current = ingredientsString;
-        
-        if (__DEV__) {
-          console.log(`Saved ${ingredients.length} ingredients`);
-        }
-      } catch (error) {
-        console.error('Gagal simpan bahan:', error);
-        // Optionally show alert for save failures
-        // showAlert('Gagal menyimpan data', 'error');
-      }
-    }, 1000); // 1 second debounce
+  const getIngredientById = useCallback((id: string) => ingredientsMap.idMap.get(id), [ingredientsMap]);
+  const getIngredientByName = useCallback((name: string) => ingredientsMap.nameMap.get(name.toLowerCase().trim()), [ingredientsMap]);
 
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [ingredients, isInitialized]);
-
-  // OPTIMASI 12: Split context value into stable parts
-  const stableActions = useMemo(() => ({
+  const value = useMemo<IngredientContextType>(() => ({
+    isEditing, setIsEditing,
+    idBeingEdited, setIdBeingEdited,
+    ingredients,
     handleSubmit,
     removeIngredient,
     editIngredient,
+    satuanList,
+    isFormModalVisible, setIsFormModalVisible,
     resetForm,
     clearAllIngredients,
     addIngredient,
+    reloadIngredients,
     addIngredientFromCSV,
     removeManyIngredients,
     addManyIngredients,
-    reloadIngredients,
+    parseIngredientFromCSV,
     getIngredientById,
     getIngredientByName,
   }), [
-    handleSubmit,
-    removeIngredient,
-    editIngredient,
-    resetForm,
-    clearAllIngredients,
-    addIngredient,
-    addIngredientFromCSV,
-    removeManyIngredients,
-    addManyIngredients,
-    reloadIngredients,
-    getIngredientById,
-    getIngredientByName,
+    isEditing, idBeingEdited, ingredients,
+    handleSubmit, removeIngredient, editIngredient,
+    isFormModalVisible,
+    clearAllIngredients, addIngredient, reloadIngredients,
+    addIngredientFromCSV, removeManyIngredients, addManyIngredients,
+    parseIngredientFromCSV, getIngredientById, getIngredientByName,
   ]);
 
-  const stableData = useMemo(() => ({
-    ingredients,
-    satuanList,
-    parseIngredientFromCSV,
-  }), [ingredients]);
-
-  const stableState = useMemo(() => ({
-    isEditing,
-    idBeingEdited,
-    isFormModalVisible,
-  }), [isEditing, idBeingEdited, isFormModalVisible]);
-
-  const stableSetters = useMemo(() => ({
-    setIsEditing,
-    setIdBeingEdited,
-    setIsFormModalVisible,
-  }), []);
-
-  // OPTIMASI 13: Final context value - only recreate when major parts change
-  const contextValue = useMemo(() => ({
-    ...stableData,
-    ...stableState,
-    ...stableActions,
-    ...stableSetters,
-  }), [stableData, stableState, stableActions, stableSetters]);
-
   return (
-    <IngredientsContext.Provider value={contextValue}>
+    <IngredientsContext.Provider value={value}>
       {children}
     </IngredientsContext.Provider>
   );
 }
 
-// OPTIMASI 14: Main hook
 export const useIngredients = () => {
-  const context = useContext(IngredientsContext);
-  if (!context) throw new Error('useIngredients must be used within IngredientsProvider');
-  return context;
-};
-
-// OPTIMASI 15: Selector hooks for better performance (same pattern as RecipesProvider)
-export const useIngredientsData = () => {
-  const { ingredients } = useIngredients();
-  return ingredients;
-};
-
-export const useIngredientsActions = () => {
-  const {
-    handleSubmit,
-    removeIngredient,
-    editIngredient,
-    addIngredient,
-    removeManyIngredients,
-    addManyIngredients,
-    clearAllIngredients,
-    reloadIngredients,
-  } = useIngredients();
-  
-  return useMemo(() => ({
-    handleSubmit,
-    removeIngredient,
-    editIngredient,
-    addIngredient,
-    removeManyIngredients,
-    addManyIngredients,
-    clearAllIngredients,
-    reloadIngredients,
-  }), [
-    handleSubmit,
-    removeIngredient,
-    editIngredient,
-    addIngredient,
-    removeManyIngredients,
-    addManyIngredients,
-    clearAllIngredients,
-    reloadIngredients,
-  ]);
-};
-
-export const useIngredientsForm = () => {
-  const {
-    isEditing,
-    idBeingEdited,
-    isFormModalVisible,
-    setIsEditing,
-    setIdBeingEdited,
-    setIsFormModalVisible,
-    resetForm,
-  } = useIngredients();
-  
-  return useMemo(() => ({
-    isEditing,
-    idBeingEdited,
-    isFormModalVisible,
-    setIsEditing,
-    setIdBeingEdited,
-    setIsFormModalVisible,
-    resetForm,
-  }), [
-    isEditing,
-    idBeingEdited,
-    isFormModalVisible,
-    setIsEditing,
-    setIdBeingEdited,
-    setIsFormModalVisible,
-    resetForm,
-  ]);
-};
-
-// OPTIMASI 16: Add selector hooks yang missing untuk consistency dengan RecipesProvider
-export const useIngredientsSelectors = () => {
-  const { satuanList, parseIngredientFromCSV } = useIngredients();
-  
-  return useMemo(() => ({
-    satuanList,
-    parseIngredientFromCSV,
-  }), [satuanList, parseIngredientFromCSV]);
-};
-
-export const useIngredientById = (id: string) => {
-  const { getIngredientById } = useIngredients();
-  return useMemo(() => getIngredientById(id), [getIngredientById, id]);
-};
-
-export const useIngredientByName = (name: string) => {
-  const { getIngredientByName } = useIngredients();
-  return useMemo(() => getIngredientByName(name), [getIngredientByName, name]);
+  const ctx = useContext(IngredientsContext);
+  if (!ctx) throw new Error('useIngredients must be used within IngredientsProvider');
+  return ctx;
 };

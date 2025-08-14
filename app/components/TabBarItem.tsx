@@ -39,7 +39,7 @@ export default function TabBarItem({ icon, title, active, isDark, onPress }: Pro
         <Ionicons
           name={icon as any}
           size={24}
-          color={active ? (isDark ? '#F2E8DC' : '#204c4b') : (isDark ? '#6b7280' : '#9ca3af')}
+          color={active ? (isDark ? '#F2E8DC' : '#ffb901') : (isDark ? '#6b7280' : '#ffffff')}
           
         />
       </Animated.View>

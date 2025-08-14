@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import uuid from 'react-native-uuid';
 import { useIngredients } from '../context/ingredients/IngredientsProvider';
-import { useAlert } from '../context/AlertContext';
-
+import showToast from 'utils/showToast';
 
 export function useRecipeIngredients(initialIngredients: any[] = []) {
   const { ingredients } = useIngredients();
-  const { showAlert } = useAlert();
   
   const [ingredientName, setIngredientName] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -16,19 +14,19 @@ export function useRecipeIngredients(initialIngredients: any[] = []) {
 
   const addIngredient = () => {
     if (!ingredientName || !quantity || !unit) {
-      showAlert('Isi nama, jumlah, dan satuan terlebih dahulu.', 'warning');
+      showToast('Isi nama, jumlah, dan satuan terlebih dahulu.', 'warning');
       return;
     }
 
     const existing = ingredients.find((i) => i.name === ingredientName);
     if (!existing) {
-      showAlert('Bahan tidak ditemukan. Tambahkan bahan terlebih dahulu.', 'error');
+      showToast('Bahan tidak ditemukan. Tambahkan bahan terlebih dahulu.', 'error');
       return;
     }
 
     const qty = parseFloat(quantity);
     if (isNaN(qty) || qty <= 0) {
-      showAlert('Jumlah harus berupa angka positif.', 'warning');
+      showToast('Jumlah harus berupa angka positif.', 'warning');
       return;
     }
 
@@ -49,11 +47,11 @@ export function useRecipeIngredients(initialIngredients: any[] = []) {
             : item
         )
       );
-      showAlert('Bahan berhasil diperbarui.', 'success');
+      showToast('Bahan berhasil diperbarui.', 'success');
       setEditIngredientId(null);
     } else {
       if (ingredientsList.find((i) => i.name === ingredientName)) {
-        showAlert('Bahan sudah ditambahkan.', 'error');
+        showToast('Bahan sudah ditambahkan.', 'error');
         return;
       }
 
@@ -67,7 +65,7 @@ export function useRecipeIngredients(initialIngredients: any[] = []) {
       };
 
       setIngredientsList((prev) => [...prev, newIngredient]);
-      showAlert('Bahan berhasil ditambahkan.', 'success');
+      showToast('Bahan berhasil ditambahkan.', 'success');
     }
 
     setIngredientName('');

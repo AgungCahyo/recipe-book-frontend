@@ -25,13 +25,13 @@ export default function FilteredCategory({ selected, onSelect }: Props) {
             onPress={() => onSelect(cat)}
             className={`flex-row items-center px-4 py-2 rounded-full mr-3 ${
               isSelected
-                ? 'bg-primary dark:bg-accent'
+                ? 'bg-dark dark:bg-accent'
                 : 'bg-accent dark:bg-neutral-900'
             }`}
           >
             <Text
               className={`text-sm  ${
-                isSelected ? 'text-accent dark:text-primary' : 'text-primary dark:text-accent'
+                isSelected ? 'text-accent dark:text-primary' : 'text-dark dark:text-accent'
               }`}
             >
               {cat === '' ? 'Semua' : cat}

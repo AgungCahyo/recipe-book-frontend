@@ -121,7 +121,7 @@ export default function FABAdd({
 
       {/* Main FAB */}
       <TouchableOpacity onPress={toggleMenu} style={[styles.button, styles.main]}>
-        <Ionicons name={open ? 'close' : 'add'} size={30} color="#F2E8DC" />
+        <Ionicons name={open ? 'close' : 'add'} size={30} color="#ffffff" />
       </TouchableOpacity>
     </View>
   );
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   main: {
-    backgroundColor: '#204c4b',
+    backgroundColor: '#000000',
   },
   secondary: {
     backgroundColor: '#4B5563',

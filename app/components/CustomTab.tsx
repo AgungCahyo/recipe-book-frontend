@@ -22,10 +22,11 @@ const ITEMS: TabItem[] = [
   { key: 'home', title: 'Home', icon: 'home-outline', route: '/main' },
   { key: 'recipes', title: 'Resep', icon: 'book-outline', route: '/main/recipes' },
   { key: 'ingredients', title: 'Bahan', icon: 'leaf-outline', route: '/main/ingredients' },
+  { key: 'profile', title: 'Profile', icon: 'people-outline', route: '/main/userProfile'}
 ];
 
 const VALID_ROUTES = new Set(ITEMS.map(item => item.route));
-const TAB_BAR_HEIGHT = 60;
+const TAB_BAR_HEIGHT = 70;
 const BACKGROUND_MARGIN = 8;
 
 type Props = {
@@ -74,7 +75,7 @@ export default function BottomTabBar({ children }: Props) {
 
       {showTabBar && (
         <View
-          className={`flex-row relative ${isDark ? 'bg-dark' : 'bg-accent'}`}
+          className={`flex-row relative ${isDark ? 'bg-dark' : 'bg-primary'}`}
           style={{ height: TAB_BAR_HEIGHT }}
         >
           {/* Animated background */}
@@ -82,11 +83,11 @@ export default function BottomTabBar({ children }: Props) {
             style={[
               {
                 position: 'absolute',
-                top: 5,
+                top: 10,
                 left: 0,
                 width: tabWidth - BACKGROUND_MARGIN * 2,
                 height: 50,
-                backgroundColor: isDark ? '#1F2937' : '#E5D5C2',
+                backgroundColor: isDark ? '#1F2937' : '#ffffff',
                 borderRadius: 12,
                 marginHorizontal: BACKGROUND_MARGIN,
               },

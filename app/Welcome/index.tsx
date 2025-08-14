@@ -8,6 +8,7 @@ export default function Welcome() {
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [isSettingUpProfile, setIsSettingUpProfile] = useState(false);
+  const [showProfileForm, setShowProfileForm] = useState(false);
 
   const router = useRouter();
   const { signInWithGoogle, loading, error, user, isAuthenticated, hasProfile } = useAuth();
@@ -15,7 +16,8 @@ export default function Welcome() {
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
-      // Jangan router.replace di sini, biarkan RootLayout handle redirect
+      // Setelah login berhasil, tampilkan form profile
+      // Jangan redirect langsung, biarkan user isi profile dulu
     } catch (err) {
       Alert.alert('Login Error', 'Gagal login dengan Google. Silakan coba lagi.');
     }
@@ -52,6 +54,13 @@ export default function Welcome() {
 
       await AsyncStorage.setItem('userProfile', JSON.stringify(profileData));
       console.log('Profile saved:', profileData);
+      
+      // Setelah profile tersimpan, baru redirect ke main
+      // Delay sedikit untuk memastikan AsyncStorage selesai
+      setTimeout(() => {
+        router.replace('/main');
+      }, 500);
+      
     } catch (err) {
       console.error('Save Profile Error:', err);
       Alert.alert('Error', 'Gagal menyimpan profile. Silakan coba lagi.');
@@ -59,26 +68,40 @@ export default function Welcome() {
     }
   };
 
-
+  // Effect untuk mengecek apakah perlu tampilkan form profile
   useEffect(() => {
-    const checkProfile = async () => {
-      const storedProfile = await AsyncStorage.getItem('userProfile');
-      console.log('AsyncStorage before set:', storedProfile);
-    };
+    if (isAuthenticated && !hasProfile && user) {
+      // User sudah login tapi belum ada profile, tampilkan form
+      setShowProfileForm(true);
+      // Set default name dari Google account
+      if (user.displayName && !name) {
+        setName(user.displayName);
+      }
+    }
+  }, [isAuthenticated, hasProfile, user]);
 
-    checkProfile();
-  }, []);
-
+  // Effect untuk redirect jika sudah ada profile lengkap
   useEffect(() => {
     if (isAuthenticated && hasProfile) {
-      router.replace('/main'); // redirect aman
+      console.log('User authenticated and has profile, redirecting...');
+      router.replace('/main');
     }
   }, [isAuthenticated, hasProfile]);
 
+  // Debugging effect
+  useEffect(() => {
+    const checkProfile = async () => {
+      const storedProfile = await AsyncStorage.getItem('userProfile');
+      console.log('Current AsyncStorage profile:', storedProfile);
+      console.log('Auth state:', { isAuthenticated, hasProfile, user: !!user });
+    };
+    checkProfile();
+  }, [isAuthenticated, hasProfile]);
 
   return (
     <View className="flex-1 items-center justify-center bg-white dark:bg-black px-8">
       {!isAuthenticated ? (
+        // Tampilan untuk user yang belum login
         <>
           <Text className="text-2xl font-bold text-zinc-900 dark:text-white mb-2 text-center">
             Selamat datang!
@@ -103,7 +126,8 @@ export default function Welcome() {
             </Text>
           )}
         </>
-      ) : (
+      ) : showProfileForm || !hasProfile ? (
+        // Tampilan form profile untuk user yang sudah login tapi belum lengkap profile
         <>
           <Text className="text-xl font-semibold text-zinc-900 dark:text-white mb-2 text-center">
             Hi, {user?.displayName || 'there'}! 👋
@@ -118,7 +142,6 @@ export default function Welcome() {
             value={name}
             onChangeText={setName}
             className="w-full px-4 py-3 mb-4 bg-zinc-100 dark:bg-zinc-800 rounded-xl text-zinc-900 dark:text-white"
-            defaultValue={user?.displayName || ''}
           />
 
           <TextInput
@@ -140,6 +163,13 @@ export default function Welcome() {
             </Text>
           </TouchableOpacity>
         </>
+      ) : (
+        // Loading state saat profile sudah ada dan sedang redirect
+        <View className="items-center">
+          <Text className="text-zinc-600 dark:text-zinc-400">
+            Memuat...
+          </Text>
+        </View>
       )}
     </View>
   );

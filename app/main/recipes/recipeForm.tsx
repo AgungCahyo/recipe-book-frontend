@@ -306,11 +306,11 @@ export default function RecipeForm() {
 
         <TouchableOpacity
           onPress={handleAddIngredient}
-          className="bg-accent-dark py-3 px-4 rounded-xl mb-6 flex-row justify-center items-center gap-2"
+          className="bg-dark py-3 px-4 rounded-xl mb-6 flex-row justify-center items-center gap-2"
           activeOpacity={0.7}
         >
-          <Ionicons name="add-circle-outline" size={24} color="204c4b" />
-          <Text className="text-center text-primary font-semibold">{editIngredientId ? 'Perbarui Bahan' : 'Tambah Bahan'}</Text>
+          <Ionicons name="add-circle-outline" size={24} color="#fff" />
+          <Text className="text-center text-accent font-semibold">{editIngredientId ? 'Perbarui Bahan' : 'Tambah Bahan'}</Text>
         </TouchableOpacity>
 
         {/* Steps Section */}

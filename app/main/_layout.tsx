@@ -37,23 +37,8 @@ export default function MainLayout() {
   }, [pathname, router]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={{ flex: 1 }} edges={[]} className='bg-transparent'>
-        <StatusBar
-          style={theme === 'dark' ? 'light' : 'dark'}
-          backgroundColor="transparent"
-          translucent
-        />
-        <RecipesProvider>
-          <IngredientsProvider>
-            <DraftRecipeProvider>
-              <CustomTab>
-                <Stack screenOptions={{ headerShown: false, animation: 'fade' }} />
-              </CustomTab>
-            </DraftRecipeProvider>
-          </IngredientsProvider>
-        </RecipesProvider>
-      </SafeAreaView>
-    </GestureHandlerRootView>
+    <CustomTab>
+      <Stack screenOptions={{ headerShown: false, animation: 'fade' }} />
+    </CustomTab>
   );
 }

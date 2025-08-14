@@ -14,11 +14,11 @@ import IngredientItem from 'app/components/IngredientItems';
 import { Ingredient } from 'context/ingredients/IngredientsProvider';
 import useSelection from 'hooks/useSelection';
 import SearchBar from 'app/components/SearchBar';
-import { useAlert } from 'context/AlertContext';
 import FABAdd from 'app/components/FABAdd';
 import RefreshableFlatList from 'app/components/RefreshFlatList';
 import { useFocusEffect } from '@react-navigation/native';
 import SelectionModeActions from 'app/components/SelectionModeAction';
+import showToast from 'utils/showToast';
 
 type TabProps = {
   goToHome: () => void;
@@ -73,7 +73,6 @@ export default function IngredientsSetup({ isFocused }: TabProps) {
   } = useIngredients();
 
   const [search, setSearch] = useState('');
-  const { showAlert } = useAlert();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const {
@@ -97,6 +96,7 @@ export default function IngredientsSetup({ isFocused }: TabProps) {
     const searchWords = searchTerm.split(/\s+/);
 
     return ingredients.filter((item) => {
+
       if (!item?.name) return false;
       const itemName = item.name.toLowerCase();
       return searchWords.every((word) => itemName.includes(word));
@@ -144,17 +144,17 @@ export default function IngredientsSetup({ isFocused }: TabProps) {
       await reloadIngredients();
     } catch (error) {
       console.error('Gagal refresh:', error);
-      showAlert('Gagal memuat data', 'error');
+      showToast('Gagal memuat data', 'error');
     } finally {
       setIsRefreshing(false);
     }
-  }, [reloadIngredients, isRefreshing, showAlert]);
+  }, [reloadIngredients, isRefreshing, showToast]);
 
   const handleImportCSV = useCallback(async () => {
     try {
       const data = await cvsImporter();
       if (!data?.length) {
-        showAlert('File CSV kosong atau tidak valid', 'error');
+        showToast('File CSV kosong atau tidak valid', 'error');
         return;
       }
 
@@ -173,19 +173,19 @@ export default function IngredientsSetup({ isFocused }: TabProps) {
         InteractionManager.runAfterInteractions(async () => {
           try {
             await addManyIngredients(validItems);
-            showAlert(`${validItems.length} bahan berhasil diimpor`, 'success');
+            showToast(`${validItems.length} bahan berhasil diimpor`, 'success');
           } catch (error) {
-            showAlert('Gagal mengimpor beberapa bahan', 'error');
+            showToast('Gagal mengimpor beberapa bahan', 'error');
           }
         });
       } else {
-        showAlert('Tidak ada bahan baru yang valid untuk diimpor', 'warning');
+        showToast('Tidak ada bahan baru yang valid untuk diimpor', 'warning');
       }
     } catch (error) {
       console.error('Import CSV error:', error);
-      showAlert('Terjadi kesalahan saat mengimpor CSV', 'error');
+      showToast('Terjadi kesalahan saat mengimpor CSV', 'error');
     }
-  }, [ingredients, parseIngredientFromCSV, addManyIngredients, showAlert]);
+  }, [ingredients, parseIngredientFromCSV, addManyIngredients, showToast]);
 
   const deleteSelected = useCallback(async () => {
     if (selectedIds.length === 0) return;
@@ -193,11 +193,11 @@ export default function IngredientsSetup({ isFocused }: TabProps) {
     try {
       await removeManyIngredients(selectedIds);
       cancelSelection();
-      showAlert(`${selectedIds.length} bahan berhasil dihapus`, 'success');
+      showToast(`${selectedIds.length} bahan berhasil dihapus`, 'success');
     } catch (error) {
-      showAlert('Gagal menghapus beberapa bahan', 'error');
+      showToast('Gagal menghapus beberapa bahan', 'error');
     }
-  }, [selectedIds, removeManyIngredients, cancelSelection, showAlert]);
+  }, [selectedIds, removeManyIngredients, cancelSelection, showToast]);
 
   const fabActions = useMemo(
     () => [
@@ -239,11 +239,11 @@ export default function IngredientsSetup({ isFocused }: TabProps) {
 
   const ListEmptyComponent = useMemo(
     () => (
-      <View className="flex-1 items-center justify-center mt-10">
-        <Text className="italic text-gray-500 text-center text-base leading-6">
+      <View className="flex-1 items-center justify-center mt-20">
+        <Text className="italic text-primary text-center text-base leading-6">
           {search
             ? 'Bahan tidak ditemukan.\nCoba kata kunci lain.'
-            : 'Belum ada bahan.\nTambah bahan baru terlebih dahulu.'}
+            : 'Belum ada bahan\n ditambahkan.'}
         </Text>
       </View>
     ),
@@ -255,7 +255,7 @@ export default function IngredientsSetup({ isFocused }: TabProps) {
       <View className="flex-1 px-2 pt-4">
         {/* Header */}
         <View className="border-b mx-5 border-primary">
-          <Text className="text-3xl px-5 py-3 rounded-3xl font-semibold text-primary dark:text-accent text-center">
+          <Text className="text-3xl px-5 py-3 rounded-3xl font-semibold text-dark dark:text-accent text-center">
             Daftar Bahan
           </Text>
         </View>

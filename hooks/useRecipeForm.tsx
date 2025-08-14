@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useRecipes } from '../context/RecipesContext';
 import { useIngredients } from '../context/ingredients/IngredientsProvider';
 import { useDraftRecipe } from '../context/DraftRecipeContext';
-import { useAlert } from '../context/AlertContext';
+import showToast from 'utils/showToast';
 import { useRecipeUploader } from './useRecipeUploader';
 import { useRecipeIngredients } from './useRecipeIngredients';
 import { useRecipeSteps } from './useRecipeSteps';
@@ -31,7 +31,6 @@ const createImageSignature = (imageUris: any[]) =>
 
 export function useRecipeForm(id?: string) {
   const router = useRouter();
-  const { showAlert } = useAlert();
   const { recipes, addRecipe, editRecipe } = useRecipes();
   const { ingredients } = useIngredients();
   const { draft, updateDraft, clearDraft } = useDraftRecipe();
@@ -113,7 +112,7 @@ export function useRecipeForm(id?: string) {
     setImageUris,
     isUploading,
     pickImage,
-  } = useRecipeUploader(showAlert, recipeData.imageUris);
+  } = useRecipeUploader(showToast, recipeData.imageUris);
 
   const {
     steps,
@@ -278,7 +277,7 @@ export function useRecipeForm(id?: string) {
     const validation = validateForm();
     
     if (!validation.isValid) {
-      showAlert(validation.message!, 'error');
+      showToast(validation.message!, 'error');
       return;
     }
 
@@ -301,16 +300,16 @@ export function useRecipeForm(id?: string) {
     try {
       if (editing && existingRecipe) {
         await editRecipe(existingRecipe.id, recipeData);
-        showAlert('Resep diperbarui.', 'success');
+        showToast('Resep diperbarui.', 'success');
         router.back();
       } else {
         const newId = await addRecipe(recipeData);
-        showAlert('Resep berhasil ditambahkan.', 'success');
+        showToast('Resep berhasil ditambahkan.', 'success');
         router.replace(`/main/recipes/${newId}`);
       }
       clearDraft();
     } catch (error) {
-      showAlert('Terjadi kesalahan saat menyimpan resep.', 'error');
+      showToast('Terjadi kesalahan saat menyimpan resep.', 'error');
       console.error('Save recipe error:', error);
     }
   }, [
@@ -326,7 +325,7 @@ export function useRecipeForm(id?: string) {
     editRecipe,
     addRecipe,
     clearDraft,
-    showAlert,
+    showToast,
     router
   ]);
 

@@ -236,7 +236,7 @@ export default function Recipes({ isFocused }: TabProps) {
       >
         <View className="flex-1 px-4 pt-4">
           <View className={`border-b mx-5 ${isDark ? 'border-accent' : 'border-primary'}`}>
-            <Text className={`text-3xl px-5 py-3 rounded-3xl font-semibold ${isDark ? 'text-accent' : 'text-primary'} text-center`}>
+            <Text className={`text-3xl px-5 py-3 rounded-3xl font-semibold ${isDark ? 'text-accent' : 'text-dark'} text-center`}>
               Daftar Resep
             </Text>
           </View>

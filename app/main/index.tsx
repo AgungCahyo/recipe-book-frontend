@@ -32,12 +32,12 @@ const StatCard = memo(({ icon, label, value, isDark }: {
   isDark: boolean;
 }) => (
   <View
-    className={`flex-1 rounded-2xl p-4 shadow-sm border ${isDark ? 'bg-dark border-muted' : 'bg-accent border-accent-dark'
+    className={`flex-1 rounded-2xl p-4 shadow-sm border ${isDark ? 'bg-dark border-muted' : 'bg-accent border-dark'
       }`}
   >
     <View className="flex-row items-center gap-2 mb-1">
       <Ionicons name={icon as any} size={20} color={isDark ? '#F2E8DC' : '#204C4B'} />
-      <Text className={`${isDark ? 'text-accent' : 'text-primary'} text-sm`}>{label}</Text>
+      <Text className={`${isDark ? 'text-accent' : 'text-primary'} text-lg font-semibold`}>{label}</Text>
     </View>
     <Text className={`${isDark ? 'text-accent' : 'text-dark'} text-2xl font-bold`}>
       {value}
@@ -77,14 +77,14 @@ const GreetingSection = memo(({ greetingMessage, ageLabel, joke, isDark }: {
   isDark: boolean;
 }) => (
   <>
-    <Text className={`text-lg font-medium ${isDark ? 'text-accent' : 'text-primary'} mb-1`}>
+    <Text className={`text-lg font-medium ${isDark ? 'text-accent' : 'text-dark'} mb-1`}>
       {greetingMessage}
     </Text>
-    <Text className={`${isDark ? 'text-accent-dark' : 'text-primary'} text-xs italic mb-2`}>
+    <Text className={`${isDark ? 'text-accent-dark' : 'text-dark'} text-xs italic mb-2`}>
       ({ageLabel})
     </Text>
     <View className={`${isDark ? 'bg-accent' : 'bg-primary'} my-6 px-4 py-3 rounded-xl`}>
-      <Text className={`${isDark ? 'text-primary' : 'text-accent'} text-sm italic text-center`}>
+      <Text className={`${isDark ? 'text-accent' : 'text-dark'} text-sm italic text-center`}>
         {joke}
       </Text>
     </View>
@@ -178,10 +178,10 @@ export default function HomePage({ goToIngredients }: TabProps) {
           isDark={isDark}
         />
 
-        <Text className={`text-3xl font-bold ${isDark ? 'text-accent' : 'text-primary'} mb-1`}>
+        <Text className={`text-3xl font-bold ${isDark ? 'text-accent' : 'text-dark'} mb-1`}>
           Buku Resep Digital
         </Text>
-        <Text className={`text-base mb-6 ${isDark ? 'text-accent-dark' : 'text-muted'}`}>
+        <Text className={`text-base mb-6 ${isDark ? 'text-accent-dark' : 'text-dark/50'}`}>
           Simpan, kelola, dan temukan resep favoritmu di satu tempat.
         </Text>
 
@@ -221,7 +221,6 @@ export default function HomePage({ goToIngredients }: TabProps) {
           Resep Terbaru
         </Text>
       </View>
-      <LogoText />
       {/* LIST SCROLLABLE */}
       <FlatList
         data={filteredRecipes}

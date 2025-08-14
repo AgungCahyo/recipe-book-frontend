@@ -72,7 +72,7 @@ const LoadingComponent = () => {
         }`}
         style={{ letterSpacing: 0.5 }}
       >
-        Memuat data resep...
+       Loading...
       </Text>
     </View>
   );
