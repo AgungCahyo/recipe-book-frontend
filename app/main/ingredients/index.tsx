@@ -55,7 +55,6 @@ export default function IngredientsSetup({ isFocused }: TabProps) {
   useFocusEffect(
     useCallback(() => {
       if (__DEV__) {
-        console.log('Screen focused: IngredientsScreen');
       }
     }, [])
   );

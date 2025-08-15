@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import BackButton from 'app/components/BackButton';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
+import { db, serverTimestamp } from '../../../firebase/config';
 
 interface StoredProfile {
   name: string;
@@ -57,36 +58,51 @@ export default function UserProfile() {
     }
   };
 
-  const handleSaveProfile = async () => {
-    if (!editName.trim() || !editAge.trim()) {
-      Alert.alert('Error', 'Nama dan usia harus diisi');
-      return;
+
+// ...
+
+const handleSaveProfile = async () => {
+  if (!editName.trim() || !editAge.trim()) {
+    Alert.alert('Error', 'Nama dan usia harus diisi');
+    return;
+  }
+
+  setSaving(true);
+  try {
+    const updatedProfile: StoredProfile = {
+      ...storedProfile,
+      name: editName.trim(),
+      age: parseInt(editAge, 10) || 0,
+      email: user?.email ?? undefined,
+      photoURL: user?.photoURL ?? undefined,
+      uid: user?.uid ?? undefined,
+      updatedAt: new Date().toISOString(),
+      createdAt: storedProfile?.createdAt ?? new Date().toISOString(),
+    };
+
+    // Simpan lokal
+    await AsyncStorage.setItem('userProfile', JSON.stringify(updatedProfile));
+    setStoredProfile(updatedProfile);
+
+    // Simpan ke Firestore
+    if (user?.uid) {
+      await db.collection('users').doc(user.uid).set({
+        ...updatedProfile,
+        createdAt: storedProfile?.createdAt ? serverTimestamp() : serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
     }
 
-    setSaving(true);
-    try {
-      const updatedProfile: StoredProfile = {
-        ...storedProfile,
-        name: editName.trim(),
-        age: parseInt(editAge, 10) || 0,
-        email: user?.email ?? undefined,
-        photoURL: user?.photoURL ?? undefined,
-        uid: user?.uid ?? undefined,
-        updatedAt: new Date().toISOString(),
-        createdAt: storedProfile?.createdAt ?? new Date().toISOString()
-      };
+    setIsEditing(false);
+    Alert.alert('Success', 'Profile berhasil diupdate!');
+  } catch (error) {
+    Alert.alert('Error', 'Gagal menyimpan profile');
+    console.error('Error saving profile:', error);
+  } finally {
+    setSaving(false);
+  }
+};
 
-      await AsyncStorage.setItem('userProfile', JSON.stringify(updatedProfile));
-      setStoredProfile(updatedProfile);
-      setIsEditing(false);
-      Alert.alert('Success', 'Profile berhasil diupdate!');
-    } catch (error) {
-      Alert.alert('Error', 'Gagal menyimpan profile');
-      console.error('Error saving profile:', error);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleSignOut = () => {
     Alert.alert(

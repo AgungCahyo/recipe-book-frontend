@@ -2,26 +2,17 @@ import React, {
   createContext, useContext, useEffect, useState, useMemo, useCallback,
 } from 'react';
 import uuid from 'react-native-uuid';
-import { db, serverTimestamp } from '../../firebase/config'; // nanti ini modular
+import { db, serverTimestamp } from '../../firebase/config';
 import {
-  collection,
-  doc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  writeBatch,
-  onSnapshot,
+  collection, doc, getDocs, query, where, orderBy, setDoc,
+  updateDoc, deleteDoc, writeBatch, onSnapshot,
 } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { satuanList } from './constant';
 import showToast from 'utils/showToast';
 import { useAuth } from 'context/AuthContext';
 import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
-
 
 export type Ingredient = {
   id: string;
@@ -66,9 +57,28 @@ type IngredientContextType = {
   getIngredientByName: (name: string) => Ingredient | undefined;
 };
 
-
-
 export const IngredientsContext = createContext<IngredientContextType | null>(null);
+
+const STORAGE_KEY = '@ingredients_cache';
+
+const saveToStorage = async (items: Ingredient[]) => {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  } catch (e) {
+    console.error('Error saving to AsyncStorage:', e);
+  }
+};
+
+const loadFromStorage = async (): Promise<Ingredient[]> => {
+  try {
+    const json = await AsyncStorage.getItem(STORAGE_KEY);
+    if (!json) return [];
+    return JSON.parse(json);
+  } catch (e) {
+    console.error('Error loading from AsyncStorage:', e);
+    return [];
+  }
+};
 
 export function IngredientsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -79,50 +89,83 @@ export function IngredientsProvider({ children }: { children: React.ReactNode })
   const [idBeingEdited, setIdBeingEdited] = useState<string | null>(null);
   const [isFormModalVisible, setIsFormModalVisible] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  
- const parseIngredientFromCSV = useCallback((raw:any) => {
-  try {
-    const quantity = Number(raw.quantity);
-    const totalPrice = Number(raw.totalPrice);
-    const name = raw.name?.trim() ?? '';
-    const unit = raw.unit?.trim() ?? '';
 
-    if (!name || !unit || isNaN(quantity) || isNaN(totalPrice) || quantity <= 0 || totalPrice <= 0) {
-      console.warn('CSV invalid:', raw); // <-- log di sini
+  // --- CSV parsing ---
+  const parseIngredientFromCSV = useCallback((raw: any) => {
+    try {
+      const quantity = Number(raw.quantity);
+      const totalPrice = Number(raw.totalPrice);
+      const name = raw.name?.trim() ?? '';
+      const unit = raw.unit?.trim() ?? '';
+
+      if (!name || !unit || isNaN(quantity) || isNaN(totalPrice) || quantity <= 0 || totalPrice <= 0) {
+        console.warn('CSV invalid:', raw);
+        return null;
+      }
+      if (!satuanList.includes(unit)) {
+        console.warn('Unit tidak valid:', raw);
+        return null;
+      }
+      if (!uid) {
+        console.warn('UID tidak ada, skip:', raw);
+        return null;
+      }
+
+      return {
+        id: uuid.v4() as string,
+        name,
+        unit,
+        quantity,
+        totalPrice,
+        pricePerUnit: totalPrice / quantity,
+        userId: uid,
+      } as Ingredient;
+    } catch (e) {
+      console.error('Error parsing CSV item:', raw, e);
       return null;
     }
-
-    if (!satuanList.includes(unit)) {
-      console.warn('Unit tidak valid:', raw);
-      return null;
-    }
-
-    if (!uid) {
-      console.warn('UID tidak ada, skip:', raw);
-      return null;
-    }
-
-    return {
-      id: uuid.v4() as string,
-      name,
-      unit,
-      quantity,
-      totalPrice,
-      pricePerUnit: totalPrice / quantity,
-      userId: uid,
-    } as Ingredient;
-  } catch (e) {
-    console.error('Error parsing CSV item:', raw, e);
-    return null;
-  }
-}, [uid]);
-
+  }, [uid]);
 
   const resetForm = useCallback(() => {
     setIsEditing(false);
     setIdBeingEdited(null);
     setIsFormModalVisible(false);
   }, []);
+
+  // --- Helper Firestore batch delete ---
+  const chunkCommit = useCallback(async (ids: string[]) => {
+    for (let i = 0; i < ids.length; i += 500) {
+      const batch = db.batch();
+      ids.slice(i, i + 500).forEach(id => batch.delete(db
+        .collection('users')
+        .doc(uid)
+        .collection('ingredients')
+        .doc(id)));
+      await batch.commit();
+    }
+  }, [uid]);
+
+  // --- Add ingredient ---
+  const addIngredient = useCallback(async (item: Ingredient) => {
+    if (!uid || !item?.id || !item.name?.trim()) return;
+    try {
+      await db
+        .collection('users')
+        .doc(uid)
+        .collection('ingredients')
+        .doc(item.id)
+        .set({
+          ...item,
+          userId: uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      showToast('Bahan berhasil ditambahkan', 'success');
+    } catch (e) {
+      console.error('Error adding ingredient:', e);
+      showToast('Gagal menambahkan bahan', 'error');
+    }
+  }, [uid]);
 
   const handleSubmit = useCallback(async ({ name, quantity, totalPrice, unit }: IngredientInput) => {
     if (!uid) return;
@@ -131,60 +174,62 @@ export function IngredientsProvider({ children }: { children: React.ReactNode })
     const unitTrim = unit.trim();
 
     if (!trimmedName || quantity <= 0 || totalPrice <= 0 || !unitTrim) {
-      showToast('Semua field harus diisi dengan benar', 'error'); return;
+      showToast('Semua field harus diisi dengan benar', 'error');
+      return;
     }
     if (!satuanList.includes(unitTrim)) {
-      showToast('Satuan tidak valid', 'error'); return;
+      showToast('Satuan tidak valid', 'error');
+      return;
     }
-
     const pricePerUnit = totalPrice / quantity;
 
     try {
       if (isEditing && idBeingEdited) {
-        await db.collection('ingredients').doc(idBeingEdited).update({
-          name: trimmedName,
-          unit: unitTrim,
-          quantity,
-          totalPrice,
-          pricePerUnit,
-          updatedAt: serverTimestamp(),
-        });
-
-        setIngredients(prev => prev.map(it =>
-          it.id === idBeingEdited ? { ...it, name: trimmedName, unit: unitTrim, quantity, totalPrice, pricePerUnit } : it
-        ));
+        await db
+          .collection('users')
+          .doc(uid)
+          .collection('ingredients')
+          .doc(idBeingEdited)
+          .update({
+            name: trimmedName,
+            unit: unitTrim,
+            quantity,
+            totalPrice,
+            pricePerUnit,
+            updatedAt: serverTimestamp(),
+          });
         showToast('Perubahan disimpan', 'success');
       } else {
-        const dup = await db.collection('ingredients')
-          .where('userId', '==', uid)
+        const dup = await db
+          .collection('users')
+          .doc(uid)
+          .collection('ingredients')
           .where('name', '==', trimmedName)
-          .limit(1).get();
-
+          .limit(1)
+          .get();
         if (!dup.empty) {
-          showToast('Bahan dengan nama tersebut sudah ada', 'warning'); return;
+          showToast('Bahan dengan nama tersebut sudah ada', 'warning');
+          return;
         }
-
         const id = uuid.v4() as string;
-        const docData: Ingredient = {
-          id,
-          name: trimmedName,
-          unit: unitTrim,
-          quantity,
-          totalPrice,
-          pricePerUnit,
-          userId: uid,
-        };
-
-        await db.collection('ingredients').doc(id).set({
-          ...docData,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-
-        setIngredients(prev => [...prev, docData]);
+        await db
+          .collection('users')
+          .doc(uid)
+          .collection('ingredients')
+          .doc(id)
+          .set({
+            id,
+            name: trimmedName,
+            unit: unitTrim,
+            quantity,
+            totalPrice,
+            pricePerUnit,
+            userId: uid,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
         showToast('Bahan berhasil ditambahkan', 'success');
       }
-
       resetForm();
     } catch (e) {
       console.error('Error saving ingredient:', e);
@@ -194,31 +239,18 @@ export function IngredientsProvider({ children }: { children: React.ReactNode })
 
   const removeIngredient = useCallback(async (id: string) => {
     try {
-      await db.collection('ingredients').doc(id).delete();
+      await db
+        .collection('users')
+        .doc(uid)
+        .collection('ingredients')
+        .doc(id).delete();
       setIngredients(prev => prev.filter(it => it.id !== id));
       showToast('Bahan dihapus', 'success');
     } catch (e) {
       console.error('Error removing ingredient:', e);
       showToast('Gagal menghapus bahan', 'error');
     }
-  }, []);
-
-  const editIngredient = useCallback((id: string) => {
-    if (!ingredients.some(it => it.id === id)) {
-      showToast('Bahan tidak ditemukan', 'error'); return;
-    }
-    setIsEditing(true);
-    setIdBeingEdited(id);
-    setIsFormModalVisible(true);
-  }, [ingredients]);
-
-  const chunkCommit = useCallback(async (ids: string[]) => {
-    for (let i = 0; i < ids.length; i += 500) {
-      const batch = db.batch();
-      ids.slice(i, i + 500).forEach(id => batch.delete(db.collection('ingredients').doc(id)));
-      await batch.commit();
-    }
-  }, []);
+  }, [uid]);
 
   const clearAllIngredients = useCallback(async () => {
     if (ingredients.length === 0) {
@@ -234,35 +266,15 @@ export function IngredientsProvider({ children }: { children: React.ReactNode })
     }
   }, [ingredients, chunkCommit]);
 
-  const addIngredient = useCallback(async (item: Ingredient) => {
-    if (!uid || !item?.id || !item.name?.trim()) return;
-
-    const doc = {
-      ...item,
-      userId: uid,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-
-    try {
-      await db.collection('ingredients').doc(item.id).set(doc);
-      setIngredients(prev => prev.some(x => x.id === item.id) ? prev : [...prev, item]);
-    } catch (e) {
-      console.error('Error adding ingredient:', e);
-      showToast('Gagal menambahkan bahan', 'error');
-    }
-  }, [uid]);
-
-const addIngredientFromCSV = useCallback((raw: {
-  name: string;
-  quantity: string;
-  totalPrice: string;
-  unit: string;
-}) => {
-  const parsed = parseIngredientFromCSV(raw);
-  if (parsed) addIngredient(parsed);
-}, [addIngredient, parseIngredientFromCSV]);
-
+  const addIngredientFromCSV = useCallback((raw: {
+    name: string;
+    quantity: string;
+    totalPrice: string;
+    unit: string;
+  }) => {
+    const parsed = parseIngredientFromCSV(raw);
+    if (parsed) addIngredient(parsed);
+  }, [addIngredient, parseIngredientFromCSV]);
 
   const removeManyIngredients = useCallback(async (ids: string[]) => {
     if (!ids?.length) return;
@@ -277,61 +289,62 @@ const addIngredientFromCSV = useCallback((raw: {
   }, [chunkCommit]);
 
   const addManyIngredients = useCallback(async (items: Ingredient[]) => {
-  if (!items?.length || !uid) return;
+    if (!items?.length || !uid) return;
 
-  const failedItems: Ingredient[] = [];
-
-  const valid = items.filter(it => {
-    const isValid = it.id && it.name?.trim() && it.quantity > 0 && it.totalPrice > 0;
-    if (!isValid) failedItems.push(it);
-    return isValid;
-  });
-
-  if (!valid.length) {
-    showToast('Tidak ada bahan valid untuk ditambahkan', 'warning'); 
-    console.log('Failed items:', failedItems);
-    return;
-  }
-
-  try {
-    for (let i = 0; i < valid.length; i += 500) {
-      const batch = db.batch();
-      valid.slice(i, i + 500).forEach(it => {
-        const ref = db.collection('ingredients').doc(it.id);
-        batch.set(ref, {
-          ...it,
-          userId: uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      });
-      await batch.commit();
-    }
-
-    setIngredients(prev => {
-      const ids = new Set(prev.map(p => p.id));
-      const names = new Set(prev.map(p => p.name.toLowerCase().trim()));
-      const newOnes = valid.filter(it => !ids.has(it.id) && !names.has(it.name.toLowerCase().trim()));
-      return newOnes.length ? [...prev, ...newOnes] : prev;
+    const failedItems: Ingredient[] = [];
+    const valid = items.filter(it => {
+      const isValid = it.id && it.name?.trim() && it.quantity > 0 && it.totalPrice > 0;
+      if (!isValid) failedItems.push(it);
+      return isValid;
     });
 
-    showToast(`${valid.length} bahan ditambahkan`, 'success');
-
-    if (failedItems.length) {
-      console.warn('Bahan gagal diimport:', failedItems);
+    if (!valid.length) {
+      showToast('Tidak ada bahan valid untuk ditambahkan', 'warning');
+      console.log('Failed items:', failedItems);
+      return;
     }
-  } catch (e) {
-    console.error('Error adding multiple ingredients:', e);
-    showToast('Gagal menambahkan bahan', 'error');
-  }
-}, [uid]);
 
+    try {
+      for (let i = 0; i < valid.length; i += 500) {
+        const batch = db.batch();
+        valid.slice(i, i + 500).forEach(it => {
+          const ref = db
+            .collection('users')
+            .doc(uid)
+            .collection('ingredients')
+            .doc(it.id);
+          batch.set(ref, {
+            ...it,
+            userId: uid,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        });
+        await batch.commit();
+      }
+
+      setIngredients(prev => {
+        const ids = new Set(prev.map(p => p.id));
+        const names = new Set(prev.map(p => p.name.toLowerCase().trim()));
+        const newOnes = valid.filter(it => !ids.has(it.id) && !names.has(it.name.toLowerCase().trim()));
+        return newOnes.length ? [...prev, ...newOnes] : prev;
+      });
+
+      showToast(`${valid.length} bahan ditambahkan`, 'success');
+      if (failedItems.length) console.warn('Bahan gagal diimport:', failedItems);
+    } catch (e) {
+      console.error('Error adding multiple ingredients:', e);
+      showToast('Gagal menambahkan bahan', 'error');
+    }
+  }, [uid]);
 
   const reloadIngredients = useCallback(async () => {
     if (!uid) return;
     try {
-      const snap = await db.collection('ingredients')
-        .where('userId', '==', uid)
+      const snap = await db
+        .collection('users')
+        .doc(uid)
+        .collection('ingredients')
         .orderBy('createdAt', 'desc')
         .get();
 
@@ -345,35 +358,50 @@ const addIngredientFromCSV = useCallback((raw: {
     }
   }, [uid]);
 
+  // --- Load from AsyncStorage on init ---
   useEffect(() => {
-    reloadIngredients();
+    const init = async () => {
+      const localData = await loadFromStorage();
+      if (localData.length) setIngredients(localData);
+      await reloadIngredients();
+    };
+    init();
   }, [reloadIngredients]);
 
+  // --- Update AsyncStorage when ingredients change ---
+  useEffect(() => {
+    saveToStorage(ingredients);
+  }, [ingredients]);
+
+  // --- Firestore realtime listener ---
   useEffect(() => {
     if (!uid || !isInitialized) return;
-    const unsubscribe = db.collection('ingredients')
-      .where('userId', '==', uid)
+    const unsubscribe = db
+      .collection('users')
+      .doc(uid)
+      .collection('ingredients')
       .orderBy('updatedAt', 'desc')
-      .onSnapshot((snapshot) => {
+      .onSnapshot(snapshot => {
         setIngredients(prev => {
           let next = [...prev];
           snapshot.docChanges().forEach(change => {
             const id = change.doc.id;
             const data = change.doc.data() as any;
-            if (change.type === 'added' || change.type === 'modified') {
+            const item = { id, ...data } as Ingredient;
+
+            if (change.type === 'added') {
+              const exists = next.some(x => x.id === id);
+              if (!exists) next.push(item);
+            } else if (change.type === 'modified') {
               const idx = next.findIndex(x => x.id === id);
-              const item = { id, ...data } as Ingredient;
-              if (idx >= 0) next[idx] = item; else next.push(item);
+              if (idx >= 0) next[idx] = item;
             } else if (change.type === 'removed') {
               next = next.filter(x => x.id !== id);
             }
           });
           return next;
         });
-      }, (err) => {
-        console.error('Listener error:', err);
-      });
-
+      }, (err) => console.error('Listener error:', err));
     return () => unsubscribe();
   }, [uid, isInitialized]);
 
@@ -389,6 +417,15 @@ const addIngredientFromCSV = useCallback((raw: {
 
   const getIngredientById = useCallback((id: string) => ingredientsMap.idMap.get(id), [ingredientsMap]);
   const getIngredientByName = useCallback((name: string) => ingredientsMap.nameMap.get(name.toLowerCase().trim()), [ingredientsMap]);
+const editIngredient = useCallback((id: string) => {
+  if (!ingredients.some(it => it.id === id)) {
+    showToast('Bahan tidak ditemukan', 'error');
+    return;
+  }
+  setIsEditing(true);
+  setIdBeingEdited(id);
+  setIsFormModalVisible(true);
+}, [ingredients]);
 
   const value = useMemo<IngredientContextType>(() => ({
     isEditing, setIsEditing,
@@ -411,8 +448,7 @@ const addIngredientFromCSV = useCallback((raw: {
     getIngredientByName,
   }), [
     isEditing, idBeingEdited, ingredients,
-    handleSubmit, removeIngredient, editIngredient,
-    isFormModalVisible,
+    handleSubmit, removeIngredient, isFormModalVisible,
     clearAllIngredients, addIngredient, reloadIngredients,
     addIngredientFromCSV, removeManyIngredients, addManyIngredients,
     parseIngredientFromCSV, getIngredientById, getIngredientByName,

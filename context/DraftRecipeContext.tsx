@@ -10,13 +10,19 @@ type Ingredient = {
   cost: number;
 };
 
+export type ImageStatus = {
+  uri: string;
+  status: 'loading' | 'done' | 'error';
+};
+
 type DraftRecipe = {
   title: string;
   steps: string[];
   ingredients: Ingredient[];
-  imageUris: string[];
+  imageUris: ImageStatus[]; // <- diubah dari string[]
   category: string;
 };
+
 
 type DraftContextType = {
   draft: DraftRecipe;

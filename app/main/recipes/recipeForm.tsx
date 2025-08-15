@@ -26,30 +26,34 @@ import uuid from 'react-native-uuid';
 import useBackHandler from 'hooks/backHandler';
 
 // Memoized Components
-const MemoizedImageItem = memo(({ img, index, onRemove }: any) => (
-  <View key={index} className="relative w-28 mr-3 h-32">
-    {img.status === 'loading' ? (
-      <View className="w-full h-full rounded-xl bg-gray-200 dark:bg-neutral-700 items-center justify-center">
-        <ActivityIndicator size="small" color="#3B82F6" />
-        <Text className="text-xs mt-1 text-gray-500 dark:text-gray-400">Mengunggah...</Text>
-      </View>
-    ) : (
-      <>
-        <Image
-          source={{ uri: img.uri }}
-          className="w-full h-full rounded-xl border border-primary"
-        />
-        <TouchableOpacity
-          onPress={() => onRemove(index)}
-          className="absolute top-1 right-1 bg-red-500 w-6 h-6 rounded-full items-center justify-center"
-          activeOpacity={0.7}
-        >
-          <Text className="text-white font-bold text-xs">×</Text>
-        </TouchableOpacity>
-      </>
-    )}
-  </View>
-));
+const MemoizedImageItem = memo(({ img, index, onRemove }: any) => {
+  console.log('🖼️ Rendering image item:', { index, status: img.status, uri: img.uri.slice(-20) });
+  
+  return (
+    <View key={index} className="relative w-28 mr-3 h-32">
+      {img.status === 'loading' ? (
+        <View className="w-full h-full rounded-xl bg-gray-200 dark:bg-neutral-700 items-center justify-center">
+          <ActivityIndicator size="small" color="#3B82F6" />
+          <Text className="text-xs mt-1 text-gray-500 dark:text-gray-400">Mengunggah...</Text>
+        </View>
+      ) : (
+        <>
+          <Image
+            source={{ uri: img.uri }}
+            className="w-full h-full rounded-xl border border-primary"
+          />
+          <TouchableOpacity
+            onPress={() => onRemove(index)}
+            className="absolute top-1 right-1 bg-red-500 w-6 h-6 rounded-full items-center justify-center"
+            activeOpacity={0.7}
+          >
+            <Text className="text-white font-bold text-xs">×</Text>
+          </TouchableOpacity>
+        </>
+      )}
+    </View>
+  );
+});
 
 const MemoizedIngredientItem = memo(({ item, theme, onEdit, onRemove }: any) => (
   <TouchableOpacity
@@ -122,23 +126,27 @@ export default function RecipeForm() {
     ]).start();
   }, [animatedValue]);
 
+  // FIXED: Add missing destructured properties from useRecipeForm
   const {
     title, setTitle,
     steps, updateStep, addStep, removeStep,
     ingredientsList, ingredientName, quantity, unit,
     setIngredientName, setQuantity, setUnit,
     addIngredient, removeIngredient,
-    imageUris, setImageUris,
+    editIngredientId, setEditIngredientId, // ADDED: These were missing
+    imageUris, setImageUris, removeImage, replaceImage, // ADDED: replaceImage
     category, setCategory,
     calculateTotalHPP,
     handleSave,
     pickImage,
     editing,
     isUploading,
+    isSaving, // ADDED: This was missing
     setIngredientsList
   } = useRecipeForm(id);
 
-  const [editIngredientId, setEditIngredientId] = useState<string | null>(null);
+  // REMOVED: This was duplicated - editIngredientId comes from useRecipeForm
+  // const [editIngredientId, setEditIngredientId] = useState<string | null>(null);
 
   const ingredientOptions = useMemo(() =>
     ingredients.map((i) => ({ label: i.name, value: i.name })),
@@ -146,6 +154,7 @@ export default function RecipeForm() {
   );
 
   const handleEditIngredient = useCallback((itemId: string) => {
+    console.log('✏️ Editing ingredient:', itemId);
     const item = ingredientsList.find((i) => i.id === itemId);
     if (!item) return;
     setIngredientName(item.name);
@@ -153,11 +162,12 @@ export default function RecipeForm() {
     setUnit(item.unit);
     setEditIngredientId(itemId);
     InteractionManager.runAfterInteractions(triggerFlash);
-  }, [ingredientsList, setIngredientName, setQuantity, setUnit, triggerFlash]);
+  }, [ingredientsList, setIngredientName, setQuantity, setUnit, setEditIngredientId, triggerFlash]);
 
-  const handleRemoveImage = useCallback((index: number) => {
-    setImageUris((prev) => prev.filter((_, i) => i !== index));
-  }, [setImageUris]);
+  const handleRemoveImage = useCallback((idx: number) => {
+    console.log('🗑️ Component removing image at index:', idx);
+    removeImage(idx);
+  }, [removeImage]);
 
   const handleRemoveIngredient = useCallback((itemId: string) => {
     removeIngredient(itemId);
@@ -167,7 +177,7 @@ export default function RecipeForm() {
       setUnit('');
       setEditIngredientId(null);
     }
-  }, [removeIngredient, editIngredientId, setIngredientName, setQuantity, setUnit]);
+  }, [removeIngredient, editIngredientId, setIngredientName, setQuantity, setUnit, setEditIngredientId]);
 
   const handleAddIngredient = useCallback(() => {
     if (!ingredientName || !quantity || !unit) return;
@@ -197,11 +207,15 @@ export default function RecipeForm() {
     setQuantity('');
     setUnit('');
     setEditIngredientId(null);
-  }, [ingredientName, quantity, unit, ingredients, editIngredientId, ingredientsList, setIngredientsList, setIngredientName, setQuantity, setUnit]);
+  }, [ingredientName, quantity, unit, ingredients, editIngredientId, ingredientsList, setIngredientsList, setIngredientName, setQuantity, setUnit, setEditIngredientId]);
 
   useEffect(() => {
     const selected = ingredients.find((i) => i.name === ingredientName);
-    if (selected && unit !== selected.unit) setUnit(selected.unit);
+    if (selected && unit !== selected.unit) {
+      // pakai setTimeout 0 supaya keluar dari fase render
+      const timer = setTimeout(() => setUnit(selected.unit), 0);
+      return () => clearTimeout(timer);
+    }
   }, [ingredientName, ingredients, unit, setUnit]);
 
   const animatedBackgroundStyle = useMemo(() => ({
@@ -212,6 +226,14 @@ export default function RecipeForm() {
 
   useBackHandler(useCallback(() => { router.back(); return true; }, [router]));
   const totalHPP = useMemo(() => calculateTotalHPP(), [calculateTotalHPP]);
+
+  // ADDED: Debug logging
+  console.log('🔍 Component render:', { 
+    imagesCount: imageUris.length, 
+    editing, 
+    isSaving,
+    title: title.slice(0, 20) 
+  });
 
   return (
     <>
@@ -252,15 +274,23 @@ export default function RecipeForm() {
         <View className="relative flex-1 flex-row mb-6 gap-2">
           <TouchableOpacity
             onPress={pickImage}
+            disabled={isSaving} // ADDED: Disable saat saving
             className="bg-gray-100 dark:bg-neutral-800 h-32 py-4 px-4 mr-4 rounded-2xl border border-dashed justify-center items-center gap-2 border-primary dark:border-gray-600"
             activeOpacity={0.7}
           >
             <Ionicons name="add-circle-outline" size={24} color={theme === 'dark' ? 'white' : 'black'} />
-            <Text className="text-center text-gray-700 dark:text-gray-300 font-medium">Tambah Gambar</Text>
+            <Text className="text-center text-gray-700 dark:text-gray-300 font-medium">
+              {isSaving ? 'Menyimpan...' : 'Tambah Gambar'}
+            </Text>
           </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row" removeClippedSubviews={true}>
-            {imageUris.map((img, index) => (
-              <MemoizedImageItem key={`image-${index}`} img={img} index={index} onRemove={handleRemoveImage} />
+            {imageUris.map((img, idx) => (
+              <MemoizedImageItem
+                key={`${img.uri}-${idx}`} // IMPROVED: Better key
+                img={img}
+                index={idx}
+                onRemove={handleRemoveImage}
+              />
             ))}
           </ScrollView>
         </View>
@@ -336,17 +366,17 @@ export default function RecipeForm() {
         <Text className="text-gray-700 dark:text-gray-200 font-semibold mb-2">Total HPP: Rp {totalHPP.toLocaleString('id-ID')}</Text>
         <TouchableOpacity
           onPress={handleSave}
-          disabled={isUploading}
+          disabled={isUploading || isSaving} // IMPROVED: Disable for both states
           className="bg-primary dark:bg-zinc-100 py-4 rounded-2xl shadow-md flex-row justify-center items-center gap-2 active:opacity-80"
-          activeOpacity={isUploading ? 1 : 0.8}
+          activeOpacity={isUploading || isSaving ? 1 : 0.8}
         >
-          {isUploading ? (
+          {(isUploading || isSaving) ? (
             <ActivityIndicator size="small" color={theme === 'dark' ? '#000' : '#fff'} />
           ) : (
             <Ionicons name={editing ? 'save-outline' : 'add-circle-outline'} size={24} color={theme === 'dark' ? '#000' : '#fff'} />
           )}
           <Text className={`font-bold text-lg tracking-wide ${theme === 'dark' ? 'text-black' : 'text-white'}`}>
-            {isUploading ? 'Menyimpan...' : editing ? 'Simpan Perubahan' : 'Tambah Resep'}
+            {(isUploading || isSaving) ? 'Menyimpan...' : editing ? 'Simpan Perubahan' : 'Tambah Resep'}
           </Text>
         </TouchableOpacity>
       </View>

@@ -207,7 +207,7 @@ export default function RecipeDetailPage() {
       </View>
     );
   }
-
+ 
   return (
     <View className="flex-1 bg-primary dark:bg-black">
       <HeaderComponent title={updatedRecipe.title} category={updatedRecipe.category} />
@@ -218,7 +218,7 @@ export default function RecipeDetailPage() {
           </ScrollView>
         )}
 
-        <View className="px-5 pb-28">
+        <View className="px-5 pb-28 mt-[80]">
           <Text className="text-xl font-semibold text-dark dark:text-zinc-200 mb-1">Bahan-bahan</Text>
           <View className="space-y-2 mb-2">
             {(showAllIngredients ? updatedRecipe.ingredients : updatedRecipe.ingredients.slice(0, MAX_VISIBLE))

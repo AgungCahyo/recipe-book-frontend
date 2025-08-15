@@ -73,6 +73,18 @@ export const RecipesProvider = ({ children }: { children: React.ReactNode }) => 
     }
   }, []);
 
+const replaceRecipeImage = (recipeId: string, index: number, newUri: string) => {
+  setRecipes(prev => 
+    prev.map(r => {
+      if (r.id !== recipeId) return r;
+      const updatedImages = [...(r.imageUris || [])];
+      updatedImages[index] = newUri; // replace di index tertentu
+      return { ...r, imageUris: updatedImages };
+    })
+  );
+};
+
+
   // OPTIMASI 3: More efficient addRecipe with duplicate checking
   const addRecipe = useCallback(async (data: Omit<Recipe, 'id'>): Promise<string> => {
     const trimmedTitle = data.title.trim();
@@ -118,13 +130,14 @@ export const RecipesProvider = ({ children }: { children: React.ReactNode }) => 
       }
 
       // Check if there are actual changes
-      const hasChanges =
-        existingRecipe.title !== trimmedTitle ||
-        existingRecipe.description !== updated.description ||
-        existingRecipe.category !== updated.category ||
-        JSON.stringify(existingRecipe.ingredients) !== JSON.stringify(updated.ingredients) ||
-        existingRecipe.sellingPrice !== updated.sellingPrice ||
-        existingRecipe.margin !== updated.margin;
+     const hasChanges =
+  existingRecipe.title !== trimmedTitle ||
+  existingRecipe.description !== updated.description ||
+  existingRecipe.category !== updated.category ||
+  JSON.stringify(existingRecipe.ingredients) !== JSON.stringify(updated.ingredients) ||
+  existingRecipe.sellingPrice !== updated.sellingPrice ||
+  existingRecipe.margin !== updated.margin ||
+  JSON.stringify(existingRecipe.imageUris || []) !== JSON.stringify(updated.imageUris || []);
 
       if (!hasChanges) {
         return prev; // No changes, return same array
@@ -285,7 +298,7 @@ export const RecipesProvider = ({ children }: { children: React.ReactNode }) => 
         lastSavedRef.current = recipesString;
 
         if (__DEV__) {
-          console.log(`Saved ${recipes.length} recipes`);
+          
         }
       } catch (error) {
         console.error('Gagal simpan recipes:', error);

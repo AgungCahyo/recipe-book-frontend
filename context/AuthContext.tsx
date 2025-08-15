@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { db, firebaseAuth, serverTimestamp, } from '../firebase/config';
 
 interface AuthContextType {
   user: FirebaseAuthTypes.User | null;
@@ -19,8 +20,8 @@ const AuthContext = createContext<AuthContextType>({
   error: null,
   isAuthenticated: false,
   hasProfile: false,
-  signInWithGoogle: async () => {},
-  signOut: async () => {},
+  signInWithGoogle: async () => { },
+  signOut: async () => { },
 });
 
 interface AuthProviderProps {
@@ -48,27 +49,53 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const signInWithGoogle = async () => {
     setLoading(true);
     setError(null);
-    console.log('Starting Google Sign-In...');
+
     try {
+      console.log('Starting Google Sign-In...');
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-
       await GoogleSignin.signIn();
-      const { idToken } = await GoogleSignin.getTokens();
-      console.log('Got idToken:', idToken);
 
+      const { idToken } = await GoogleSignin.getTokens();
       if (!idToken) throw new Error('Google Sign-In failed: no ID token');
 
       const credential = auth.GoogleAuthProvider.credential(idToken);
       const userCredential = await auth().signInWithCredential(credential);
-      setUser(userCredential.user);
-      console.log('Firebase sign-in success:', userCredential.user.email);
+
+      const loggedInUser = userCredential.user;
+      if (!loggedInUser) throw new Error('User not found after sign-in');
+
+      setUser(loggedInUser);
+      console.log('Firebase sign-in success:', loggedInUser.email);
+
+      // Reference ke dokumen user
+      const userRef = db.collection('users').doc(loggedInUser.uid);
+
+      // Cek apakah dokumen ada
+      const userSnapshot = await userRef.get();
+
+      if (!userSnapshot.exists) {
+        // Buat dokumen baru jika belum ada
+        await userRef.set({
+          name: loggedInUser.displayName || '',
+          email: loggedInUser.email || '',
+          age: 0,
+          photoURL: loggedInUser.photoURL || '',
+          createdAt: serverTimestamp(),
+        });
+        console.log('User document created in Firestore');
+      } else {
+        console.log('User document already exists');
+      }
+
     } catch (err: any) {
       console.error('Google Sign-In Error:', err);
+
       let msg = 'Unknown error';
       if (err.code === statusCodes.SIGN_IN_CANCELLED) msg = 'Sign-in cancelled';
       else if (err.code === statusCodes.IN_PROGRESS) msg = 'Sign-in in progress';
       else if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) msg = 'Play Services not available';
       else if (err.message) msg = err.message;
+
       setError(msg);
       throw new Error(msg);
     } finally {
@@ -76,12 +103,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+
   const signOut = async () => {
     setLoading(true);
     setError(null);
     try {
-      await GoogleSignin.revokeAccess().catch(() => {});
-      await GoogleSignin.signOut().catch(() => {});
+      await GoogleSignin.revokeAccess().catch(() => { });
+      await GoogleSignin.signOut().catch(() => { });
       await auth().signOut();
       setUser(null);
       console.log('User signed out');

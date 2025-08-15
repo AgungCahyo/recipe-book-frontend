@@ -19,6 +19,7 @@ import { useFonts } from 'expo-font';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 
 import ImmersiveMode from 'react-native-immersive-mode';
+import { AlertProvider } from 'context/AlertContext';
 
 
 
@@ -42,7 +43,6 @@ export default function RootLayout() {
         const userProfile = await AsyncStorage.getItem('userProfile');
         const profileExists = !!userProfile;
         setHasProfile(profileExists);
-        console.log('Profile check:', profileExists ? 'Profile exists' : 'No profile found');
       } catch (error) {
         console.error('Error checking profile:', error);
         setHasProfile(false);
@@ -55,7 +55,6 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    // Prevent multiple navigations
     if (loading || hasNavigated.current) return;
 
     hasNavigated.current = true;
@@ -78,7 +77,6 @@ export default function RootLayout() {
       </View>
     );
   }
-
 
   const toastConfig = {
     success: (props: any) => (
@@ -109,42 +107,36 @@ export default function RootLayout() {
       />
     ),
   };
-  ImmersiveMode.fullLayout(true)
+  ImmersiveMode.fullLayout(false)
   ImmersiveMode.setBarMode('BottomSticky');
 
   if (!fontsLoaded) {
-    return null; // atau bisa pakai <AppLoading /> kalau ingin splash screen
+    return null;
   }
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
-        <NavigationProvider>
-          <IngredientsProvider>
-            <DraftRecipeProvider>
-              <RecipesProvider>
-                <SafeAreaView
-                  style={{ flex: 1 }}
-                >
-                  <StatusBar
-                    style={theme === 'dark' ? 'light' : 'dark'}
-                    backgroundColor="transparent"
-                    translucent
-                  />
-
-                  <Stack
-                    screenOptions={{
-                      animation: 'none',
-                      headerShown: false,
-                      gestureEnabled: true,
-                    }}
-                  />
-
-                </SafeAreaView>
-              </RecipesProvider>
-            </DraftRecipeProvider>
-          </IngredientsProvider>
-        </NavigationProvider>
-        <Toast config={toastConfig} />
+        <AlertProvider>
+          <NavigationProvider>
+            <SafeAreaView
+              style={{ flex: 1 }}
+            >
+              <StatusBar
+                style={theme === 'dark' ? 'light' : 'dark'}
+                backgroundColor="transparent"
+                translucent
+              />
+              <Stack
+                screenOptions={{
+                  animation: 'none',
+                  headerShown: false,
+                  gestureEnabled: true,
+                }}
+              />
+            </SafeAreaView>
+          </NavigationProvider>
+          <Toast config={toastConfig} />
+        </AlertProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );

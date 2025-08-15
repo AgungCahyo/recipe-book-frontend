@@ -37,8 +37,16 @@ export default function MainLayout() {
   }, [pathname, router]);
 
   return (
+    <DraftRecipeProvider>
+      <RecipesProvider>
+        <IngredientsProvider>
+
+
     <CustomTab>
       <Stack screenOptions={{ headerShown: false, animation: 'fade' }} />
     </CustomTab>
+        </IngredientsProvider>
+      </RecipesProvider>
+    </DraftRecipeProvider>
   );
 }

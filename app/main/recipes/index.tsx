@@ -37,7 +37,6 @@ const PAGE_SIZE = 10;
 export default function Recipes({ isFocused }: TabProps) {
   useFocusEffect(
     useCallback(() => {
-      console.log('Screen focused: RecipesScreen');
     }, [])
   );
 

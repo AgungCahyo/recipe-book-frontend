@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { db, serverTimestamp } from 'firebase/config';
 
 export default function Welcome() {
   const [name, setName] = useState('');
@@ -16,87 +17,73 @@ export default function Welcome() {
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
-      // Setelah login berhasil, tampilkan form profile
-      // Jangan redirect langsung, biarkan user isi profile dulu
+
     } catch (err) {
       Alert.alert('Login Error', 'Gagal login dengan Google. Silakan coba lagi.');
     }
   };
 
   const handleProfileSubmit = async () => {
-    if (!name.trim() || !age.trim()) {
-      Alert.alert('Error', 'Nama dan usia harus diisi');
-      return;
-    }
+  if (!name.trim() || !age.trim()) {
+    Alert.alert('Error', 'Nama dan usia harus diisi');
+    return;
+  }
 
-    const ageNum = parseInt(age, 10);
-    if (isNaN(ageNum) || ageNum <= 0) {
-      Alert.alert('Error', 'Usia harus berupa angka valid');
-      return;
-    }
+  const ageNum = parseInt(age, 10);
+  if (isNaN(ageNum) || ageNum <= 0) {
+    Alert.alert('Error', 'Usia harus berupa angka valid');
+    return;
+  }
 
-    if (!user) {
-      Alert.alert('Error', 'User belum login');
-      return;
-    }
+  if (!user) {
+    Alert.alert('Error', 'User belum login');
+    return;
+  }
 
-    setIsSettingUpProfile(true);
+  setIsSettingUpProfile(true);
 
-    try {
-      const profileData = {
-        name: name.trim(),
-        age: ageNum,
-        email: user.email,
-        photoURL: user.photoURL,
-        uid: user.uid,
-        createdAt: new Date().toISOString(),
-      };
-
-      await AsyncStorage.setItem('userProfile', JSON.stringify(profileData));
-      console.log('Profile saved:', profileData);
-      
-      // Setelah profile tersimpan, baru redirect ke main
-      // Delay sedikit untuk memastikan AsyncStorage selesai
-      setTimeout(() => {
-        router.replace('/main');
-      }, 500);
-      
-    } catch (err) {
-      console.error('Save Profile Error:', err);
-      Alert.alert('Error', 'Gagal menyimpan profile. Silakan coba lagi.');
-      setIsSettingUpProfile(false);
-    }
-  };
-
-  // Effect untuk mengecek apakah perlu tampilkan form profile
-  useEffect(() => {
-    if (isAuthenticated && !hasProfile && user) {
-      // User sudah login tapi belum ada profile, tampilkan form
-      setShowProfileForm(true);
-      // Set default name dari Google account
-      if (user.displayName && !name) {
-        setName(user.displayName);
-      }
-    }
-  }, [isAuthenticated, hasProfile, user]);
-
-  // Effect untuk redirect jika sudah ada profile lengkap
-  useEffect(() => {
-    if (isAuthenticated && hasProfile) {
-      console.log('User authenticated and has profile, redirecting...');
-      router.replace('/main');
-    }
-  }, [isAuthenticated, hasProfile]);
-
-  // Debugging effect
-  useEffect(() => {
-    const checkProfile = async () => {
-      const storedProfile = await AsyncStorage.getItem('userProfile');
-      console.log('Current AsyncStorage profile:', storedProfile);
-      console.log('Auth state:', { isAuthenticated, hasProfile, user: !!user });
+  try {
+    const profileData = {
+      name: name.trim(),
+      age: ageNum,
+      email: user.email,
+      photoURL: user.photoURL,
+      uid: user.uid,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
-    checkProfile();
-  }, [isAuthenticated, hasProfile]);
+
+    // Simpan ke AsyncStorage
+    await AsyncStorage.setItem('userProfile', JSON.stringify(profileData));
+
+    // Simpan ke Firestore
+    await db.collection('users').doc(user.uid).set({
+      ...profileData,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    console.log('Profile saved:', profileData);
+
+    router.replace('/main');
+
+  } catch (err) {
+    console.error('Save Profile Error:', err);
+    Alert.alert('Error', 'Gagal menyimpan profile. Silakan coba lagi.');
+    setIsSettingUpProfile(false);
+  }
+};
+
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // langsung tampilkan form input nama & usia
+      setShowProfileForm(true);
+      setName(user.displayName || ''); // ambil nama terbaru dari akun Google
+      setAge(''); // reset usia
+    }
+  }, [isAuthenticated, user]);
+
 
   return (
     <View className="flex-1 items-center justify-center bg-white dark:bg-black px-8">
